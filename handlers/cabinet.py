@@ -1,0 +1,109 @@
+# handlers/cabinet.py
+from __future__ import annotations
+
+from aiogram import Router, F
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from services.premium_emoji import PremiumEmoji
+from config import Config
+from database import Database
+
+router = Router()
+
+
+def cabinet_actions_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],
+        [InlineKeyboardButton(text="💸 Вывод", callback_data="withdraw_menu")],
+    ])
+
+
+def rget(row, key: str, default=None):
+    """Безопасно достаём поле из sqlite3.Row / dict."""
+    if row is None:
+        return default
+    try:
+        if isinstance(row, dict):
+            return row.get(key, default)
+        keys = row.keys()
+        if key in keys:
+            val = row[key]
+            return default if val is None else val
+    except Exception:
+        pass
+    return default
+
+@router.message(F.text == "👤 Кабинет")
+async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumEmoji):
+    tg_id = message.from_user.id
+    username = message.from_user.username or "NoUsername"
+
+    user = db.get_user(tg_id)
+    if not user:
+        db.create_user(tg_id=tg_id, username=username, referrer_id=None)
+        user = db.get_user(tg_id)
+
+    # обновим username если поменялся
+    old_username = rget(user, "username", "NoUsername")
+    if old_username != username:
+        try:
+            db.update_username(tg_id, username)
+            user = db.get_user(tg_id)
+        except Exception:
+            pass
+
+    digi_balance = int(rget(user, "balance_digi", 0) or 0)
+    usdt_balance = float(rget(user, "usdt_balance", 0.0) or 0.0)
+
+    total_topup = float(rget(user, "total_topup_usdt", 0.0) or 0.0)
+
+    # NEW: статус + реф баланс + прогресс
+    try:
+        status = db.get_status(tg_id)
+    except Exception:
+        status = str(rget(user, "status", "newbie") or "newbie")
+
+
+    tasks_completed_total = int(rget(user, "tasks_completed_total", 0) or 0)
+    tasks_created_total = int(rget(user, "tasks_created_total", 0) or 0)
+
+    # лимит заданий
+    tasks_limit = 10 if status == "active" else 7
+
+    # условия активации
+    need_topup = 5.0
+    need_done = 7
+    need_created = 7
+
+    done_done = min(tasks_completed_total, need_done)
+    done_created = min(tasks_created_total, need_created)
+    done_topup = min(total_topup, need_topup)
+
+    status_title = "🟢 Активный" if status == "active" else "🔘 Новичок"
+
+    withdraw_txt = "✅ доступен" if status == "active" else "❌ заблокирован"
+    ref_txt = "✅ доступна" if status == "active" else "❌ закрыта"
+    convert_txt = "✅ доступна" if status == "active" else "❌ закрыта"
+
+    digi_per_1_usdt = int(getattr(cfg, "DIGI_PER_1_USDT", 5000))
+
+    progress_block = ""
+    if status != "active":
+        progress_block = (
+            "\n\n✅ <b>Прогресс до статуса «Активный»</b>\n"
+            f"• Пополнить: <b>{done_topup:.2f}/{need_topup:.2f} USDT</b>\n"
+            f"• Выполнить заданий: <b>{done_done}/{need_done}</b>\n"
+            f"• Создать заданий: <b>{done_created}/{need_created}</b>"
+        )
+    text = (
+        "👤 <b>Ваш кабинет</b>\n\n"
+        f"📱 <b>Аккаунт:</b> @{rget(user, 'username', username)}\n\n"
+        f"💵 <b>Баланс USDT:</b> <b>{usdt_balance:.2f}</b>\n"
+        f"🪙 <b>Баланс DIGI:</b> <b>{digi_balance:,}</b>\n\n"
+        f"🏷 <b>Статус:</b> <b>{status_title}</b>\n\n"
+        f"👥 <b>Рефералка:</b> <b>{ref_txt}</b>\n"
+        f"🔄 <b>Конвертация:</b> <b>{convert_txt}</b>\n"
+        f"💸 <b>Вывод:</b> <b>{withdraw_txt}</b>"
+        f"{progress_block}"
+    )
+
+    await premium.answer_html(message, text, reply_markup=cabinet_actions_kb())

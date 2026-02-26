@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <!-- viewport-fit=cover важно для iPhone (safe area) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>DigiBot Games</title>
+
+  <!-- cache-bust, чтобы iPhone не держал старый CSS -->
+  <!-- Увеличиваем версию, чтобы браузер и Telegram Mini App подгрузили обновлённый CSS без кэша -->
+  <link rel="stylesheet" href="/miniapp/static/styles.css?v=7" />
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Надёжная инициализация initData (iOS часто отдаёт не сразу) -->
+  <script>
+    (function () {
+      window.__tgInitData = "";
+
+      function readFromUrl() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const raw = (params.get("tgWebAppData") || params.get("initData") || "").trim();
+          // tgWebAppData обычно уже URL-encoded
+          return raw ? decodeURIComponent(raw) : "";
+        } catch (e) {
+          return "";
+        }
+      }
+
+      async function initWebApp() {
+        const fromUrl = readFromUrl();
+
+        // Подготовим интерфейс сразу (это не зависит от initData)
+        try {
+          const tg = window.Telegram?.WebApp;
+          tg?.ready?.();
+          tg?.expand?.();
+          tg?.disableVerticalSwipes?.();
+        } catch (e) {}
+
+        // Ждём initData до 2 секунд
+        for (let i = 0; i < 20; i++) {
+          const tg = window.Telegram?.WebApp;
+          const d = (tg?.initData || "").trim();
+          if (d && d.length > 10) {
+            window.__tgInitData = d;
+            return;
+          }
+          await new Promise(r => setTimeout(r, 100));
+        }
+
+        // fallback: если tg.initData так и не появился — пробуем URL
+        window.__tgInitData = fromUrl || "";
+      }
+
+      initWebApp();
+    })();
+  </script>
+</head>
+
+<body>
+  <!-- ===== FX BACKGROUND (только декор, логику не трогает) ===== -->
+  <div class="fx">
+    <div class="fx-vignette"></div>
+    <div class="fx-glow fx-glow--top"></div>
+    <div class="fx-glow fx-glow--mid"></div>
+
+    <!-- “летящие” иконки: USDT / 🎁 (анимация будет в CSS) -->
+    <div class="fx-floats" aria-hidden="true">
+      <span class="float f-usdt"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-gift"></span>
+      <span class="float f-gift"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-gift"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-gift"></span>
+      <span class="float f-usdt"></span>
+      <span class="float f-usdt"></span>
+    </div>
+  </div>
+
+  <div class="app">
+    <!-- SAFE AREA -->
+    <div class="safe-top" aria-hidden="true"></div>
+
+    <!-- ===== HEADER (под стиль как на скрине) ===== -->
+    <header class="top">
+      <div class="top-inner">
+        <div class="brand">
+          <!-- Логотип можно потом заменить на картинку, но пока оставим букву D -->
+          <div class="logo-wrap">
+            <div class="logo-glow" aria-hidden="true"></div>
+            <!-- Замена монограммы D на пользовательскую картинку. Убедитесь, что имя файла
+                 соответствует загруженному изображению. -->
+            <!-- Замена монограммы D на пользовательскую картинку. Используем встроенные данные
+                 (data URI), чтобы избежать проблем с путями и кэшированием. Это логотип 64×64px
+                 в формате WebP. -->
+            <!-- Подменяем логотип на пользовательское изображение (60×60). Изображение
+                 закодировано в формате WebP и встроено через data‑URI. Если хотите использовать
+                 отдельный файл, замените значение src на относительный путь (например, logo.png). -->
+          <img class="logo" src="/miniapp/static/logo.png" alt="DigiBot Logo">
+          </div>
+
+          <div class="titles">
+            <div class="title">DigiBot</div>
+            <div class="subtitle">Tether</div>
+          </div>
+        </div>
+
+        <!-- Баланс как на скрине: крупно и красиво -->
+        <div class="balance-line">
+          <div class="balance-text">
+            <span class="balance-label">Баланс:</span>
+            <span class="balance-value"><span id="usdtBal">0.00</span></span>
+            <span class="balance-unit">USDT</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Убрали главное меню и навигацию, чтобы оставались только боксы. -->
+
+    <main class="main">
+      <!-- BOXES -->
+      <section id="tab-boxes" class="panel active">
+        <div class="panel-head">
+          <div class="panel-title">Боксы</div>
+          <div class="panel-subtitle">Нажми — и получи выигрыш</div>
+        </div>
+
+        <div class="grid">
+          <button class="card pink" data-tier="2" type="button">
+            <div class="card-top">до <b>250</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico">
+                <span class="gift-star"></span>
+              </span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>2</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+
+          <button class="card blue" data-tier="7" type="button">
+            <div class="card-top">до <b>700</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico"><span class="gift-star"></span></span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>7</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+
+          <button class="card green" data-tier="20" type="button">
+            <div class="card-top">до <b>2000</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico"><span class="gift-star"></span></span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>20</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+
+          <button class="card orange" data-tier="50" type="button">
+            <div class="card-top">до <b>5000</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico"><span class="gift-star"></span></span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>50</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+
+          <button class="card gray" data-tier="100" type="button">
+            <div class="card-top">до <b>10000</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico"><span class="gift-star"></span></span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>100</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+
+          <button class="card gold" data-tier="250" type="button">
+            <div class="card-top">до <b>25000</b></div>
+            <div class="gift" aria-hidden="true">
+              <span class="gift-ico"><span class="gift-star"></span></span>
+              <span class="gift-glow"></span>
+            </div>
+            <div class="card-bot"><b>250</b> USDT</div>
+            <span class="card-shine" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="hint" id="boxHint">Нажмите на бокс, чтобы открыть.</div>
+      </section>
+
+      <!-- Секция колеса удалена, так как колесо не используется. -->
+    </main>
+
+    <!-- ===== WIN MODAL (декор для красивого “вылета суммы”, логика добавим в app.js позже) ===== -->
+    <div id="winModal" class="win-modal" aria-hidden="true">
+      <div class="win-backdrop" aria-hidden="true"></div>
+      <div class="win-card" role="dialog" aria-modal="true" aria-label="Выигрыш">
+        <div class="win-glow" aria-hidden="true"></div>
+        <div class="win-title">Вы выиграли</div>
+        <div class="win-amount">
+          <span id="winAmount">0.00</span> <span class="unit">USDT</span>
+        </div>
+        <button id="winClose" class="win-btn" type="button">Ок</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="safe-bot" aria-hidden="true"></div>
+  </div>
+
+  <!-- cache-bust, чтобы iPhone точно взял новый JS -->
+  <!-- cache-bust, чтобы iPhone точно взял новый JS; увеличили версию -->
+  <script src="/miniapp/static/app.js?v=7" defer></script>
+</body>
+</html>
+
