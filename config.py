@@ -40,6 +40,14 @@ class Config:
     CRYPTOBOT_TOKEN: str
     CRYPTOBOT_API_BASE: str
 
+    # Рефералы (USDT, 2 уровня):
+    # - реферал засчитывается, когда приглашённый пополнит суммарно >= REF_MIN_TOPUP_USDT
+    # - 1 уровень (прямой): REF_L1_REWARD_USDT
+    # - 2 уровень (реферал вашего реферала): REF_L2_REWARD_USDT
+    REF_MIN_TOPUP_USDT: float
+    REF_L1_REWARD_USDT: float
+    REF_L2_REWARD_USDT: float
+
     # ---------------------------
     # Business settings (старые)
     # ---------------------------
@@ -147,8 +155,12 @@ def load_config() -> Config:
 
         FREE_TASKS_LIMIT_PER_DAY=int(os.getenv("FREE_TASKS_LIMIT_PER_DAY", "1000")),
         VIP_TASKS_LIMIT_PER_DAY=int(os.getenv("VIP_TASKS_LIMIT_PER_DAY", "1000")),
+        # новая рефералка (USDT)
+        REF_MIN_TOPUP_USDT=float(os.getenv("REF_MIN_TOPUP_USDT", "10")),
+        REF_L1_REWARD_USDT=float(os.getenv("REF_L1_REWARD_USDT", "4")),
+        REF_L2_REWARD_USDT=float(os.getenv("REF_L2_REWARD_USDT", "2")),
 
-        REF_ACTIVE_MIN_TOPUP_USDT=float(os.getenv("REF_ACTIVE_MIN_TOPUP_USDT", "5")),
+        REF_ACTIVE_MIN_TOPUP_USDT=float(os.getenv("REF_ACTIVE_MIN_TOPUP_USDT", "10")),
         FREE_REF_REWARD_DIGI=int(os.getenv("FREE_REF_REWARD_DIGI", "5000")),
         VIP_REF_REWARD_DIGI=int(os.getenv("VIP_REF_REWARD_DIGI", "10000")),
 

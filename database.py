@@ -138,6 +138,19 @@ class Database:
         )
         """)
 
+        # --- referral rewards (2-level, USDT). Idempotency via UNIQUE(referred_id, level)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS referral_rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            referred_id INTEGER NOT NULL,
+            level INTEGER NOT NULL,
+            amount_usdt REAL NOT NULL,
+            paid_to INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(referred_id, level)
+        )
+        """)
+
         # ---------------- NEW: WALLET/PLANS (MIGRATIONS) ----------------
         # users: add usdt balance + plan + vip_until + daily counters
         # --- NEW STATUS SYSTEM (Novichok / Active)
@@ -251,16 +264,10 @@ class Database:
 
         cur.execute("""
             INSERT OR IGNORE INTO users (
-                tg_id,
-                username,
-                first_name,
-                referrer_id,
-                invited_by,
-                balance_digi,
-                earned_digi,
-                signup_bonus_given,
-                created_at,
-                last_seen_at
+                tg_id, username, first_name,
+                referrer_id, invited_by,
+                balance_digi, earned_digi,
+                signup_bonus_given, created_at, last_seen_at
             )
             VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
         """, (tg_id, username, first_name, referrer_id, referrer_id, now, now))
@@ -468,7 +475,15 @@ class Database:
         finally:
             conn.close()
 
-    def add_usdt(self, tg_id: int, amount_usdt: float) -> None:
+    def add_usdt(
+            self,
+            tg_id: int,
+            amount_usdt: float,
+            *,
+            referral_min_topup_usdt: float = 10.0,
+            ref_l1_reward_usdt: float = 4.0,
+            ref_l2_reward_usdt: float = 2.0,
+    ) -> None:
         conn = self._connect()
         cur = conn.cursor()
         cur.execute("""
@@ -480,17 +495,118 @@ class Database:
         conn.commit()
         conn.close()
 
-        # ✅ новая рефералка: активный реферал = пополнение >= X USDT
-        # значения тут дефолтные, если хочешь — можно передавать из cfg в handler topup.py
+        # ✅ рефералка (USDT, 2 уровня)
         try:
             self.process_referral_on_topup(
                 referred_tg_id=int(tg_id),
-                active_min_topup_usdt=5.0,
-                reward_free_digi=5000,
-                reward_vip_digi=10000
+                min_topup_usdt=float(referral_min_topup_usdt),
+                level1_reward_usdt=float(ref_l1_reward_usdt),
+                level2_reward_usdt=float(ref_l2_reward_usdt),
             )
         except Exception:
+            # рефералка не должна ломать пополнение
             pass
+
+    def process_referral_on_topup(
+            self,
+            referred_tg_id: int,
+            min_topup_usdt: float,
+            level1_reward_usdt: float,
+            level2_reward_usdt: float,
+    ):
+        """Рефералка (USDT, 2 уровня).
+
+        Условия:
+        - реферал считается активным, когда его total_topup_usdt >= min_topup_usdt
+        - 1 уровень: прямому пригласившему +level1_reward_usdt (1 раз на каждого реферала)
+        - 2 уровень: пригласившему пригласившего +level2_reward_usdt (1 раз на каждого реферала)
+        - идемпотентность: referral_rewards UNIQUE(referred_id, level)
+
+        Важно: используем invited_by как источник цепочки (он не обнуляется).
+        """
+        conn = self._connect()
+        cur = conn.cursor()
+        try:
+            cur.execute("BEGIN IMMEDIATE")
+
+            cur.execute(
+                "SELECT tg_id, invited_by, total_topup_usdt FROM users WHERE tg_id=?",
+                (int(referred_tg_id),),
+            )
+            u = cur.fetchone()
+            if not u:
+                conn.rollback()
+                return False
+
+            direct_referrer = u["invited_by"]
+            if not direct_referrer:
+                conn.rollback()
+                return False
+
+            total_topup = float(u["total_topup_usdt"] or 0.0)
+            if total_topup + 1e-9 < float(min_topup_usdt):
+                conn.rollback()
+                return False
+
+            now = datetime.utcnow().isoformat()
+
+            # -------- Level 1 --------
+            cur.execute(
+                "SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=1",
+                (int(referred_tg_id),),
+            )
+            if cur.fetchone() is None:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                        referrals_count = COALESCE(referrals_count, 0) + 1
+                    WHERE tg_id = ?
+                    """,
+                    (float(level1_reward_usdt), int(direct_referrer)),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
+                    VALUES (?, 1, ?, ?, ?)
+                    """,
+                    (int(referred_tg_id), float(level1_reward_usdt), int(direct_referrer), now),
+                )
+
+            # -------- Level 2 --------
+            cur.execute("SELECT invited_by FROM users WHERE tg_id=?", (int(direct_referrer),))
+            rr = cur.fetchone()
+            second_referrer = (rr["invited_by"] if rr else None)
+
+            if second_referrer:
+                cur.execute(
+                    "SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=2",
+                    (int(referred_tg_id),),
+                )
+                if cur.fetchone() is None:
+                    cur.execute(
+                        """
+                        UPDATE users
+                        SET usdt_balance = COALESCE(usdt_balance, 0) + ?
+                        WHERE tg_id = ?
+                        """,
+                        (float(level2_reward_usdt), int(second_referrer)),
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
+                        VALUES (?, 2, ?, ?, ?)
+                        """,
+                        (int(referred_tg_id), float(level2_reward_usdt), int(second_referrer), now),
+                    )
+
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
 
     def spend_usdt(self, tg_id: int, amount_usdt: float) -> bool:
         """

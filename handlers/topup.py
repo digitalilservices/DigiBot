@@ -335,13 +335,21 @@ async def topup_check(call: CallbackQuery, db: Database, cfg: Config, premium: P
         user_id = int(topup["user_id"])
         amount_usdt = float(topup["amount_usdt"] or 0.0)
 
-        # ✅ зачисляем USDT
-        db.add_usdt(user_id, amount_usdt)
+        # ✅ 1) зачисляем USDT + total_topup_usdt
+        # ✅ 2) запускаем рефералку 2-уровня (>=10): +4 прямому, +2 верхнему
+        db.add_usdt(
+            user_id,
+            amount_usdt,
+            referral_min_topup_usdt=float(getattr(cfg, "REF_MIN_TOPUP_USDT", 10.0)),
+            ref_l1_reward_usdt=float(getattr(cfg, "REF_L1_REWARD_USDT", 4.0)),
+            ref_l2_reward_usdt=float(getattr(cfg, "REF_L2_REWARD_USDT", 2.0)),
+        )
 
+        # статус/активация как у тебя
         db.try_activate_user(user_id)
 
-        # ✅ активируем рефералку (>= min_topup)
-        _process_referral_activation_after_topup(db, cfg, invitee_tg_id=user_id)
+        # ❌ УБРАТЬ: старая рефералка (иначе будет двойная или неправильная выплата)
+        # _process_referral_activation_after_topup(db, cfg, invitee_tg_id=user_id)
 
         _db_mark_topup_paid(db, invoice_id)
 
