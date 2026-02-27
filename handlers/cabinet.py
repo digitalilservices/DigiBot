@@ -4,6 +4,7 @@ from __future__ import annotations
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from services.premium_emoji import PremiumEmoji
+from aiogram.types import CallbackQuery
 from config import Config
 from database import Database
 
@@ -32,6 +33,12 @@ def rget(row, key: str, default=None):
     except Exception:
         pass
     return default
+
+@router.callback_query(F.data == "cabinet")
+async def cabinet_cb(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
+    # переиспользуем ту же логику
+    await cabinet(call.message, db, cfg, premium)
+    await call.answer()
 
 @router.message(F.text == "👤 Кабинет")
 async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumEmoji):
