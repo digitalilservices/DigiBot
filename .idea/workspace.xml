@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2205c2e5-abd4-445b-9144-80b6b1243624" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/handlers/cabinet.py" beforeDir="false" afterPath="$PROJECT_DIR$/handlers/cabinet.py" afterDir="false" />
-    </list>
+    <list default="true" id="2205c2e5-abd4-445b-9144-80b6b1243624" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

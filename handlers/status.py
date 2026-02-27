@@ -30,15 +30,14 @@ def _activation_menu_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="🟢 Активный", callback_data="activation_active_info")
     kb.button(text="👑 Лидер", callback_data="activation_leader_info")
-    kb.button(text="⬅️ Назад", callback_data="cabinet")  # оставил как у тебя
+    kb.button(text="🏠 В меню", callback_data="go_menu")
     kb.adjust(1)
     return kb.as_markup()
-
 
 def _active_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="✅ Активировать", callback_data="activation_active_apply")
-    kb.button(text="⬅️ Назад", callback_data="activation_menu")
+    kb.button(text="🏠 В меню", callback_data="go_menu")
     kb.adjust(1)
     return kb.as_markup()
 
@@ -46,10 +45,9 @@ def _active_kb():
 def _leader_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="🔄 Проверить прогресс", callback_data="activation_leader_check")
-    kb.button(text="⬅️ Назад", callback_data="activation_menu")
+    kb.button(text="🏠 В меню", callback_data="go_menu")
     kb.adjust(1)
     return kb.as_markup()
-
 
 # =========================
 # DB helpers (локально)
