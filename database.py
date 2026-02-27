@@ -509,107 +509,6 @@ class Database:
             # рефералка не должна ломать пополнение
             pass
 
-    def process_referral_on_topup(
-            self,
-            referred_tg_id: int,
-            min_topup_usdt: float,
-            level1_reward_usdt: float,
-            level2_reward_usdt: float,
-    ):
-        """Рефералка (USDT, 2 уровня).
-
-        Условия:
-        - реферал считается активным, когда его total_topup_usdt >= min_topup_usdt
-        - 1 уровень: прямому пригласившему +level1_reward_usdt (1 раз на каждого реферала)
-        - 2 уровень: пригласившему пригласившего +level2_reward_usdt (1 раз на каждого реферала)
-        - идемпотентность: referral_rewards UNIQUE(referred_id, level)
-
-        Важно: используем invited_by как источник цепочки (он не обнуляется).
-        """
-        conn = self._connect()
-        cur = conn.cursor()
-        try:
-            cur.execute("BEGIN IMMEDIATE")
-
-            cur.execute(
-                "SELECT tg_id, invited_by, total_topup_usdt FROM users WHERE tg_id=?",
-                (int(referred_tg_id),),
-            )
-            u = cur.fetchone()
-            if not u:
-                conn.rollback()
-                return False
-
-            direct_referrer = u["invited_by"]
-            if not direct_referrer:
-                conn.rollback()
-                return False
-
-            total_topup = float(u["total_topup_usdt"] or 0.0)
-            if total_topup + 1e-9 < float(min_topup_usdt):
-                conn.rollback()
-                return False
-
-            now = datetime.utcnow().isoformat()
-
-            # -------- Level 1 --------
-            cur.execute(
-                "SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=1",
-                (int(referred_tg_id),),
-            )
-            if cur.fetchone() is None:
-                cur.execute(
-                    """
-                    UPDATE users
-                    SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
-                        referrals_count = COALESCE(referrals_count, 0) + 1
-                    WHERE tg_id = ?
-                    """,
-                    (float(level1_reward_usdt), int(direct_referrer)),
-                )
-                cur.execute(
-                    """
-                    INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
-                    VALUES (?, 1, ?, ?, ?)
-                    """,
-                    (int(referred_tg_id), float(level1_reward_usdt), int(direct_referrer), now),
-                )
-
-            # -------- Level 2 --------
-            cur.execute("SELECT invited_by FROM users WHERE tg_id=?", (int(direct_referrer),))
-            rr = cur.fetchone()
-            second_referrer = (rr["invited_by"] if rr else None)
-
-            if second_referrer:
-                cur.execute(
-                    "SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=2",
-                    (int(referred_tg_id),),
-                )
-                if cur.fetchone() is None:
-                    cur.execute(
-                        """
-                        UPDATE users
-                        SET usdt_balance = COALESCE(usdt_balance, 0) + ?
-                        WHERE tg_id = ?
-                        """,
-                        (float(level2_reward_usdt), int(second_referrer)),
-                    )
-                    cur.execute(
-                        """
-                        INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
-                        VALUES (?, 2, ?, ?, ?)
-                        """,
-                        (int(referred_tg_id), float(level2_reward_usdt), int(second_referrer), now),
-                    )
-
-            conn.commit()
-            return True
-        except Exception:
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
-
     def spend_usdt(self, tg_id: int, amount_usdt: float) -> bool:
         """
         Простое списание USDT (без idempotency). Для внешних ботов используй charge_usdt().
@@ -1229,57 +1128,93 @@ class Database:
     def process_referral_on_topup(
             self,
             referred_tg_id: int,
-            active_min_topup_usdt: float,
-            reward_free_digi: int,
-            reward_vip_digi: int
-    ) -> Tuple[bool, str]:
+            min_topup_usdt: float,
+            level1_reward_usdt: float,
+            level2_reward_usdt: float,
+    ) -> bool:
         """
-        Новая логика:
-        - реферал считается активным, если total_topup_usdt реферала >= active_min_topup_usdt
-        - начисляем рефереру DIGI 1 раз
-        - награда зависит от тарифа реферера: FREE/VIP
+        Рефералка 2 уровня (USDT):
+          - реферал считается активным, когда total_topup_usdt >= min_topup_usdt
+          - 1 уровень: +level1_reward_usdt прямому пригласившему
+          - 2 уровень: +level2_reward_usdt пригласившему пригласившего
+          - выплата 1 раз на каждого реферала (idempotency через referral_rewards)
         """
         conn = self._connect()
         cur = conn.cursor()
         try:
             cur.execute("BEGIN IMMEDIATE")
 
-            cur.execute("SELECT tg_id, referrer_id, usdt_locked FROM users WHERE tg_id=?",
-                        (int(referred_tg_id),))
+            # invitee
+            cur.execute("SELECT tg_id, invited_by, total_topup_usdt FROM users WHERE tg_id=?", (int(referred_tg_id),))
             u = cur.fetchone()
             if not u:
                 conn.rollback()
-                return False, "user not found"
+                return False
 
-            referrer_id = u["referrer_id"]
-            if not referrer_id:
+            direct_referrer = u["invited_by"]
+            if not direct_referrer:
                 conn.rollback()
-                return False, "no referrer"
+                return False
 
             total_topup = float(u["total_topup_usdt"] or 0.0)
-            if total_topup + 1e-9 < float(active_min_topup_usdt):
+            if total_topup + 1e-9 < float(min_topup_usdt):
                 conn.rollback()
-                return False, f"not active yet: {total_topup:.2f} < {active_min_topup_usdt:.2f}"
+                return False
 
-            # определяем награду по тарифу реферера
-            reward = int(reward_vip_digi) if self.is_vip(int(referrer_id)) else int(reward_free_digi)
-
+            # ensure table exists (на всякий)
             cur.execute("""
-                UPDATE users
-                SET balance_digi = balance_digi + ?,
-                    referrals_count = referrals_count + 1,
-                    dep_withdraw_blocked = 1
-                WHERE tg_id = ?
-            """, (int(reward), int(referrer_id)))
+            CREATE TABLE IF NOT EXISTS referral_rewards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referred_id INTEGER NOT NULL,
+                level INTEGER NOT NULL,
+                amount_usdt REAL NOT NULL,
+                paid_to INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(referred_id, level)
+            )
+            """)
 
-            # чтобы не начислять второй раз — очищаем referrer_id у реферала
-            cur.execute("UPDATE users SET referrer_id=NULL WHERE tg_id=?", (int(referred_tg_id),))
+            now = datetime.utcnow().isoformat()
+
+            # ---- level 1 ----
+            cur.execute("SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=1", (int(referred_tg_id),))
+            if cur.fetchone() is None:
+                cur.execute("""
+                    UPDATE users
+                    SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                        referrals_count = COALESCE(referrals_count, 0) + 1
+                    WHERE tg_id = ?
+                """, (float(level1_reward_usdt), int(direct_referrer)))
+
+                cur.execute("""
+                    INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
+                    VALUES (?, 1, ?, ?, ?)
+                """, (int(referred_tg_id), float(level1_reward_usdt), int(direct_referrer), now))
+
+            # ---- level 2 ----
+            cur.execute("SELECT invited_by FROM users WHERE tg_id=?", (int(direct_referrer),))
+            r = cur.fetchone()
+            second_referrer = (r["invited_by"] if r else None)
+
+            if second_referrer:
+                cur.execute("SELECT 1 FROM referral_rewards WHERE referred_id=? AND level=2", (int(referred_tg_id),))
+                if cur.fetchone() is None:
+                    cur.execute("""
+                        UPDATE users
+                        SET usdt_balance = COALESCE(usdt_balance, 0) + ?
+                        WHERE tg_id = ?
+                    """, (float(level2_reward_usdt), int(second_referrer)))
+
+                    cur.execute("""
+                        INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
+                        VALUES (?, 2, ?, ?, ?)
+                    """, (int(referred_tg_id), float(level2_reward_usdt), int(second_referrer), now))
 
             conn.commit()
-            return True, f"referral rewarded: +{reward} DIGI"
-        except Exception as e:
+            return True
+        except Exception:
             conn.rollback()
-            return False, f"error: {e}"
+            return False
         finally:
             conn.close()
 
@@ -1941,7 +1876,7 @@ class Database:
     def try_activate_user(self, tg_id: int) -> bool:
         """
         Активирует пользователя если:
-        - total_topup_usdt >= 5
+        - total_topup_usdt >= 10
         - tasks_completed_total >= 7
         - tasks_created_total >= 7
         """

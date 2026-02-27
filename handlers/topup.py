@@ -138,67 +138,6 @@ def _db_mark_topup_paid(db: Database, invoice_id: str):
 
 
 # =========================
-# Referral activation after USDT topup
-# =========================
-def _process_referral_activation_after_topup(db: Database, cfg: Config, invitee_tg_id: int) -> bool:
-    """
-    Новый критерий активного реферала:
-      - invitee.referrer_id != NULL
-      - invitee.total_topup_usdt >= cfg.REF_ACTIVE_MIN_TOPUP_USDT (по умолчанию 5)
-
-    Начисляем рефереру 2.5 USDT на ref_balance_usdt, ОДИН РАЗ:
-      - после начисления invitee.referrer_id = NULL
-      - referrals_count += 1
-    """
-    min_topup = float(getattr(cfg, "REF_ACTIVE_MIN_TOPUP_USDT", 5.0))
-    reward_usdt = 2.5  # можно не добавлять в cfg, но лучше
-
-    conn = db._connect()
-    cur = conn.cursor()
-    try:
-        cur.execute("BEGIN IMMEDIATE")
-
-        cur.execute(
-            "SELECT tg_id, referrer_id, total_topup_usdt FROM users WHERE tg_id=?",
-            (int(invitee_tg_id),)
-        )
-        u = cur.fetchone()
-        if not u:
-            conn.rollback()
-            return False
-
-        referrer_id = u["referrer_id"]
-        if referrer_id is None:
-            conn.rollback()
-            return False
-
-        total_topup = float(u["total_topup_usdt"] or 0.0)
-        if total_topup + 1e-9 < float(min_topup):
-            conn.rollback()
-            return False
-
-        referrer_id = int(referrer_id)
-
-        # ✅ начисляем USDT на реферальный баланс
-        cur.execute("""
-            UPDATE users
-            SET usdt_balance = usdt_balance + ?,
-                referrals_count = referrals_count + 1
-            WHERE tg_id = ?
-        """, (float(reward_usdt), int(referrer_id)))
-
-        # ✅ одноразово (чтобы не начислять второй раз)
-        cur.execute("UPDATE users SET referrer_id=NULL WHERE tg_id=?", (int(invitee_tg_id),))
-
-        conn.commit()
-        return True
-    except Exception:
-        conn.rollback()
-        return False
-    finally:
-        conn.close()
-
-# =========================
 # ENTRY: "💰 Пополнить" -> choose method
 # =========================
 @router.message(F.text == "💰 Пополнить")
@@ -335,8 +274,10 @@ async def topup_check(call: CallbackQuery, db: Database, cfg: Config, premium: P
         user_id = int(topup["user_id"])
         amount_usdt = float(topup["amount_usdt"] or 0.0)
 
-        # ✅ 1) зачисляем USDT + total_topup_usdt
-        # ✅ 2) запускаем рефералку 2-уровня (>=10): +4 прямому, +2 верхнему
+        # ✅ начисляем USDT + запускаем новую 2-уровневую рефералку:
+        # - реферал считается, если total_topup_usdt >= 10
+        # - 1 уровень: +4 USDT
+        # - 2 уровень: +2 USDT
         db.add_usdt(
             user_id,
             amount_usdt,
@@ -345,10 +286,8 @@ async def topup_check(call: CallbackQuery, db: Database, cfg: Config, premium: P
             ref_l2_reward_usdt=float(getattr(cfg, "REF_L2_REWARD_USDT", 2.0)),
         )
 
-        
-
-        # ❌ УБРАТЬ: старая рефералка (иначе будет двойная или неправильная выплата)
-        # _process_referral_activation_after_topup(db, cfg, invitee_tg_id=user_id)
+        # ✅ твоя логика статусов (оставляем)
+        db.try_activate_user(user_id)
 
         _db_mark_topup_paid(db, invoice_id)
 
@@ -424,14 +363,12 @@ async def stars_buy(call: CallbackQuery, cfg: Config):
 
     payload = f"stars_digi:{call.from_user.id}:{stars}:{digi}"
 
-    # Для Stars валюта XTR, amount в LabeledPrice — в "минимальных единицах",
-    # для Stars фактически передают количество stars.
     await call.bot.send_invoice(
         chat_id=call.from_user.id,
         title="Пополнение DIGI за Stars",
         description=f"{stars}⭐ → {digi:,} DIGI",
         payload=payload,
-        provider_token="",  # обычно для Stars оставляют пустым
+        provider_token="",
         currency="XTR",
         prices=[LabeledPrice(label=f"{digi:,} DIGI", amount=int(stars))],
     )
@@ -441,7 +378,6 @@ async def stars_buy(call: CallbackQuery, cfg: Config):
 
 @router.pre_checkout_query()
 async def pre_checkout(pre: PreCheckoutQuery):
-    # обязательно подтверждаем
     await pre.answer(ok=True)
 
 
@@ -453,7 +389,6 @@ async def stars_success(message: Message, db: Database, cfg: Config, premium: Pr
     if not payload.startswith("stars_digi:"):
         return
 
-    # payload: stars_digi:<user_id>:<stars>:<digi>
     try:
         _, uid, stars, digi = payload.split(":")
         uid = int(uid)
@@ -470,12 +405,10 @@ async def stars_success(message: Message, db: Database, cfg: Config, premium: Pr
     if stars < stars_min:
         return
 
-    # защита от подмены payload (пересчёт)
     expected_digi = stars * digi_per_star
     if digi != expected_digi:
         digi = expected_digi
 
-    # если юзера нет — создаём
     u = db.get_user(uid)
     if not u:
         db.create_user(tg_id=uid, username=message.from_user.username or "NoUsername", referrer_id=None)
