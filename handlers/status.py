@@ -308,8 +308,8 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
         f"<b>• Привести {LEADER_NEED_REFS} рефералов</b>\n"
         f"<b>• Каждый должен пополнить от {LEADER_REF_MIN_TOPUP_USDT:.0f} USDT</b>\n\n"
         "🎁 <b>Награды:</b>\n"
-        f"<b>• +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
-        "🔄<b> Вы сможете конвертировать монеты DIGI в USDT и зарабатывать 💵</b>\n\n"
+        f"<b> +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
+        "🔄<b> Вы сможете конвертировать монеты DIGI/USDT и зарабатывать 💵</b>\n\n"
         f"<b>Ваш прогресс: {cnt}/{LEADER_NEED_REFS}</b>"
     )
 
