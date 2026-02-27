@@ -106,9 +106,9 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
     if status != "active":
         progress_block = (
             "\n\n <b></b>\n"
-            f"<b>{done_topup:.2f}/{need_topup:.2f} </b>\n"
-            f"<b>{done_done}/{need_done}</b>\n"
-            f"<b>{done_created}/{need_created}</b>"
+            f"<b></b>\n"
+            f"<b></b>\n"
+            f"<b></b>"
         )
     text = (
         "👤 <b>Ваш кабинет</b>\n\n"
