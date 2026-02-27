@@ -286,8 +286,7 @@ async def topup_check(call: CallbackQuery, db: Database, cfg: Config, premium: P
             ref_l2_reward_usdt=float(getattr(cfg, "REF_L2_REWARD_USDT", 2.0)),
         )
 
-        # ✅ твоя логика статусов (оставляем)
-        db.try_activate_user(user_id)
+
 
         _db_mark_topup_paid(db, invoice_id)
 

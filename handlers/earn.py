@@ -640,7 +640,7 @@ async def earn_check(call: CallbackQuery, db: Database, cfg: Config, state: FSMC
         if ok:
             db.inc_tasks_done_today(tg_id, 1)
             db.increment_tasks_completed(tg_id)
-            db.try_activate_user(tg_id)
+
 
             await call.answer("✅ Зачислено!", show_alert=True)
             await _render_tasks_page(call, db, cfg, kind, page, tg_id, premium)
@@ -1048,7 +1048,6 @@ async def earn_add_qty(message: Message, state: FSMContext, db: Database, premiu
         return
 
     db.increment_tasks_created(tg_id)
-    db.try_activate_user(tg_id)
     bal_after = max(0, bal - budget)
 
     extra = ""
@@ -1120,7 +1119,6 @@ async def owner_approve(call: CallbackQuery, db: Database, cfg: Config):
         db.inc_tasks_done_today(worker_id, 1)
 
         db.increment_tasks_completed(worker_id)
-        db.try_activate_user(worker_id)
 
         await call.answer("✅ Зачислено", show_alert=True)
         try:
