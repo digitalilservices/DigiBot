@@ -12,6 +12,7 @@ router = Router()
 
 def cabinet_actions_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚡️ Активация", callback_data="activation_menu")],
         [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],
         [InlineKeyboardButton(text="💸 Вывод", callback_data="withdraw_menu")],
     ])
@@ -70,7 +71,7 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
     tasks_limit = 10 if status == "active" else 7
 
     # условия активации
-    need_topup = 5.0
+    need_topup = 10.0
     need_done = 7
     need_created = 7
 
@@ -78,11 +79,19 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
     done_created = min(tasks_created_total, need_created)
     done_topup = min(total_topup, need_topup)
 
-    status_title = "🟢 Активный" if status == "active" else "🔘 Новичок"
+    is_active = status in ("active", "leader")
 
-    withdraw_txt = "✅ доступен" if status == "active" else "❌ заблокирован"
-    ref_txt = "✅ доступна" if status == "active" else "❌ закрыта"
-    convert_txt = "✅ доступна" if status == "active" else "❌ закрыта"
+    if status == "leader":
+        status_title = "👑 Лидер"
+    elif status == "active":
+        status_title = "🟢 Активный"
+    else:
+        status_title = "🔘 Новичок"
+
+    withdraw_txt = "✅ доступен" if is_active else "❌ заблокирован"
+    ref_txt = "✅ доступна" if is_active else "❌ закрыта"
+    # Конвертация меню можно показывать всем, но доступы ниже — уже в purchase.py
+    convert_txt = "✅ доступна" if is_active else "❌ закрыта"
 
     digi_per_1_usdt = int(getattr(cfg, "DIGI_PER_1_USDT", 5000))
 

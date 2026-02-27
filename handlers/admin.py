@@ -58,12 +58,23 @@ class AdminGiveDigiStates(StatesGroup):
     waiting_amount = State()
 
 
+class AdminGiveUsdtStates(StatesGroup):
+    waiting_user = State()
+    waiting_amount = State()
+
+
 # ==============================
 # helpers
 # ==============================
 def _is_admin(user_id: int, cfg: Config) -> bool:
     return int(user_id) == int(cfg.ADMIN_ID)
 
+def _parse_usdt_amount(txt: str):
+    try:
+        s = (txt or "").strip().replace(",", ".").replace(" ", "")
+        return float(s)
+    except Exception:
+        return None
 
 def _admin_guard(call_or_msg, cfg: Config) -> bool:
     return _is_admin(call_or_msg.from_user.id, cfg)
@@ -984,6 +995,95 @@ async def admin_give_digi_start(call: CallbackQuery, state: FSMContext, cfg: Con
         "Введи <b>TG ID</b> пользователя (цифры) или напиши <b>me</b> чтобы начислить себе:"
     )
     await call.answer()
+
+@router.callback_query(F.data == "admin_give_usdt")
+async def admin_give_usdt_start(call: CallbackQuery, state: FSMContext, cfg: Config, premium: PremiumEmoji):
+    if not _admin_guard(call, cfg):
+        await call.answer("⛔️ Нет доступа", show_alert=True)
+        return
+
+    await state.clear()
+    await state.set_state(AdminGiveUsdtStates.waiting_user)
+
+    await _answer_html(
+        call.message,
+        premium,
+        "💵 <b>Начислить USDT</b>\n\n"
+        "Введи <b>TG ID</b> пользователя (цифры) или напиши <b>me</b> чтобы начислить себе:"
+    )
+    await call.answer()
+
+
+@router.message(AdminGiveUsdtStates.waiting_user)
+async def admin_give_usdt_user(message: Message, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+
+    raw = (message.text or "").strip().lower()
+
+    if raw == "me":
+        target_id = message.from_user.id
+    else:
+        if not raw.isdigit():
+            await _answer_html(message, premium, "❌ Введи TG ID цифрами или <b>me</b>.")
+            return
+        target_id = int(raw)
+
+    u = db.get_user(target_id)
+    if not u:
+        db.create_user(tg_id=target_id, username="NoUsername", referrer_id=None)
+
+    await state.update_data(target_id=target_id)
+    await state.set_state(AdminGiveUsdtStates.waiting_amount)
+
+    await _answer_html(
+        message,
+        premium,
+        f"✅ Кому: <code>{target_id}</code>\n\n"
+        "Теперь введи сумму в <b>USDT</b> (например: <b>10</b> или <b>2.5</b>)"
+    )
+
+@router.message(AdminGiveUsdtStates.waiting_amount)
+async def admin_give_usdt_amount(message: Message, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+
+    amount = _parse_usdt_amount(message.text)
+    if amount is None or amount <= 0:
+        await _answer_html(message, premium, "❌ Введи корректную сумму. Пример: <b>10</b> или <b>2.5</b>")
+        return
+
+    if amount > 1_000_000:
+        await _answer_html(message, premium, "❌ Слишком большая сумма.")
+        return
+
+    data = await state.get_data()
+    target_id = int(data["target_id"])
+
+    # ✅ начисляем в основной usdt_balance
+    db.add_usdt(target_id, float(amount))
+
+    await state.clear()
+
+    await _answer_html(
+        message,
+        premium,
+        "✅ <b>Начислено USDT!</b>\n\n"
+        f"👤 Кому: <code>{target_id}</code>\n"
+        f"💵 Сумма: <b>{amount:.2f} USDT</b>",
+        reply_markup=admin_panel_inline()
+    )
+
+    if target_id != message.from_user.id:
+        try:
+            await message.bot.send_message(
+                target_id,
+                "💵 <b>Вам начислено USDT</b>\n\n"
+                f"✅ +<b>{amount:.2f} USDT</b>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
 
 @router.message(AdminGiveDigiStates.waiting_user)

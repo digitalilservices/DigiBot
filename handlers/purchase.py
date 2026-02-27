@@ -41,7 +41,13 @@ SERVICE_META = {
 
 def _is_active(db: Database, tg_id: int) -> bool:
     try:
-        return db.get_status(tg_id) == "active"
+        return db.get_status(tg_id) in ("active", "leader")
+    except Exception:
+        return False
+
+def _is_leader(db: Database, tg_id: int) -> bool:
+    try:
+        return db.get_status(tg_id) == "leader"
     except Exception:
         return False
 
@@ -137,8 +143,8 @@ async def buy_convert(call: CallbackQuery, state: FSMContext, db: Database, cfg:
     await state.clear()
 
     tg_id = call.from_user.id
-    if not _is_active(db, tg_id):
-        await call.answer("⛔ Конвертация доступна только со статусом Активный", show_alert=True)
+    if not _is_leader(db, tg_id):
+        await call.answer("⛔ DIGI → USDT доступно только со статусом Лидер", show_alert=True)
         return
     user = db.get_user(tg_id)
     if not user:
@@ -204,8 +210,8 @@ async def convert_menu(call: CallbackQuery, db: Database, cfg: Config, premium: 
             call.message,
             "⛔️ <b>Конвертация недоступна</b>\n\n"
             "🏷 Ваш статус: <b>Новичок</b>\n\n"
-            "✅ Чтобы открыть конвертацию, получите статус <b>Активный</b>:\n"
-            "• Пополнить <b>5 USDT</b>\n"
+            "✅ Чтобы открыть конвертацию, получите статус <b>Активный</b>:\n\n"
+            "• Пополнить <b>10 USDT</b>\n"
             "• Выполнить <b>7 заданий</b>\n"
             "• Создать <b>7 заданий</b>",
         )

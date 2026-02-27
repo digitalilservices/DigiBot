@@ -76,8 +76,9 @@ def _parse_amount(txt: str):
 
 
 def _is_active(db: Database, tg_id: int) -> bool:
+    """Активный доступ: active И leader."""
     try:
-        return db.get_status(tg_id) == "active"
+        return db.get_status(tg_id) in ("active", "leader")
     except Exception:
         return False
 
@@ -89,11 +90,11 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
     if not _is_active(db, tg_id):
         text = (
             "⛔️ <b>Вывод недоступен</b>\n\n"
-            "🏷 Статус: <b>Новичок</b>\n\n"
             "✅ <b>Чтобы открыть вывод, получите статус «Активный»</b>\n\n"
-            "<b>• Пополнить 5 USDT</b>\n"
+            "<b>• Пополнить 10 USDT</b>\n"
             "<b>• Выполнить 7 заданий</b>\n"
-            "<b>• Создать 7 заданий</b>"
+            "<b>• Создать 7 заданий</b>\n\n"
+            "👑 <b>Статус «Лидер»</b> тоже открывает вывод."
         )
         if isinstance(message_or_call, CallbackQuery):
             await premium.answer_html(

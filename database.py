@@ -141,6 +141,8 @@ class Database:
         # ---------------- NEW: WALLET/PLANS (MIGRATIONS) ----------------
         # users: add usdt balance + plan + vip_until + daily counters
         # --- NEW STATUS SYSTEM (Novichok / Active)
+        # --- LEADER STATUS ---
+        self._ensure_col(cur, "users", "leader_bonus_given", "leader_bonus_given INTEGER DEFAULT 0")
         self._ensure_col(cur, "users", "status", "status TEXT DEFAULT 'newbie'")
         self._ensure_col(cur, "users", "ref_balance_usdt", "ref_balance_usdt REAL DEFAULT 0")
         self._ensure_col(cur, "users", "tasks_completed_total", "tasks_completed_total INTEGER DEFAULT 0")
@@ -1851,7 +1853,7 @@ class Database:
         completed = int(row["tasks_completed_total"] or 0)
         created = int(row["tasks_created_total"] or 0)
 
-        if total_topup >= 5 and completed >= 7 and created >= 7:
+        if total_topup >= 10 and completed >= 7 and created >= 7:
             cur.execute("""
                 UPDATE users
                 SET status='active'
@@ -1863,3 +1865,78 @@ class Database:
 
         conn.close()
         return False
+
+    def leader_progress(self, tg_id: int, min_topup_usdt: float = 10.0) -> int:
+        """
+        Сколько приглашённых (invited_by) сделали пополнение total_topup_usdt >= 10
+        """
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) AS cnt
+            FROM users
+            WHERE invited_by = ?
+              AND COALESCE(total_topup_usdt, 0) >= ?
+        """, (int(tg_id), float(min_topup_usdt)))
+        row = cur.fetchone()
+        conn.close()
+        return int(row["cnt"] or 0) if row else 0
+
+    def try_grant_leader(self, tg_id: int, need_refs: int = 10, min_topup_usdt: float = 10.0,
+                         bonus_usdt: float = 10.0) -> bool:
+        """
+        Даёт статус leader если выполнено:
+          - invited_by count (total_topup_usdt >= 10) >= 10
+        При выдаче: начисляет +10 USDT ОДИН РАЗ (leader_bonus_given)
+        """
+        conn = self._connect()
+        cur = conn.cursor()
+        try:
+            cur.execute("BEGIN IMMEDIATE")
+
+            cur.execute("SELECT status, leader_bonus_given FROM users WHERE tg_id=?", (int(tg_id),))
+            u = cur.fetchone()
+            if not u:
+                conn.rollback()
+                return False
+
+            status = str(u["status"] or "newbie")
+            bonus_given = int(u["leader_bonus_given"] or 0)
+
+            # если уже лидер — ничего
+            if status == "leader":
+                conn.rollback()
+                return False
+
+            cur.execute("""
+                SELECT COUNT(*) AS cnt
+                FROM users
+                WHERE invited_by = ?
+                  AND COALESCE(total_topup_usdt, 0) >= ?
+            """, (int(tg_id), float(min_topup_usdt)))
+            cnt = int((cur.fetchone() or {})["cnt"] or 0)
+
+            if cnt < int(need_refs):
+                conn.rollback()
+                return False
+
+            # выдаём статус leader
+            cur.execute("UPDATE users SET status='leader' WHERE tg_id=?", (int(tg_id),))
+
+            # бонус 10 USDT один раз
+            if bonus_given == 0:
+                cur.execute("""
+                    UPDATE users
+                    SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                        leader_bonus_given = 1
+                    WHERE tg_id = ?
+                """, (float(bonus_usdt), int(tg_id)))
+
+            conn.commit()
+            return True
+
+        except Exception:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
