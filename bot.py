@@ -297,6 +297,8 @@ async def main():
 
     dp = Dispatcher(storage=MemoryStorage())
     db = Database(cfg.DB_PATH)
+    logging.info(f"✅ DB_PATH(cfg) = {cfg.DB_PATH}")
+    logging.info(f"✅ DB_PATH(used) = {db.db_path}")
 
     # DI
     dp["cfg"] = cfg

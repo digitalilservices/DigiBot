@@ -9,6 +9,8 @@ import secrets
 
 class Database:
     def __init__(self, db_path: Path):
+        db_path = Path(db_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)  # важно для /var/data
         self.db_path = str(db_path)
         self._init_db()
 
