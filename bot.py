@@ -307,7 +307,7 @@ async def main():
     # ===== PREMIUM EMOJI (auto-load from your packs) =====
     premium = await PremiumEmoji.from_sticker_sets(
         bot,
-        ["sohccw_by_EmojiTitleBot", "sog5ed_by_EmojiTitleBot", "sy1gu7_by_EmojiTitleBot", "sepu9i_by_EmojiTitleBot", "sfxbpi_by_EmojiTitleBot"]
+        ["sohccw_by_EmojiTitleBot", "sog5ed_by_EmojiTitleBot", "sy1gu7_by_EmojiTitleBot", "sepu9i_by_EmojiTitleBot", "sfxbpi_by_EmojiTitleBot", "s0rve8_by_EmojiTitleBot"]
     )
     dp["premium"] = premium
 
