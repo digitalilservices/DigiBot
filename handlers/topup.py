@@ -345,6 +345,7 @@ async def topup_check(call: CallbackQuery, db: Database, cfg: Config, premium: P
             ref_l2_reward_usdt=float(getattr(cfg, "REF_L2_REWARD_USDT", 2.0)),
         )
 
+        
 
         # ❌ УБРАТЬ: старая рефералка (иначе будет двойная или неправильная выплата)
         # _process_referral_activation_after_topup(db, cfg, invitee_tg_id=user_id)
