@@ -28,8 +28,8 @@ LEADER_BONUS_USDT = 10.0
 # =========================
 def _activation_menu_kb():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🟢 Активный", callback_data="activation_active_info")
-    kb.button(text="👑 Лидер", callback_data="activation_leader_info")
+    kb.button(text="💚 Активный", callback_data="activation_active_info")
+    kb.button(text="💜 Лидер", callback_data="activation_leader_info")
     kb.button(text="🏠 В меню", callback_data="go_menu")
     kb.adjust(1)
     return kb.as_markup()
@@ -145,7 +145,7 @@ def _try_grant_leader_raw(db: Database, tg_id: int) -> bool:
 async def activation_menu(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
     await premium.answer_html(
         call.message,
-        "⚡️ <b>Активация</b>\n\nВыберите статус 👇",
+        "🟢 <b>Активация статуса</b>\n\nВыберите статус 👇",
         reply_markup=_activation_menu_kb(),
     )
     await call.answer()
@@ -174,7 +174,7 @@ async def activation_active_info(call: CallbackQuery, db: Database, cfg: Config,
     created = int((u["tasks_created_total"] if "tasks_created_total" in u.keys() else 0) or 0)
     status = str((u["status"] if "status" in u.keys() else "newbie") or "newbie")
 
-    status_title = "👑 Лидер" if status == "leader" else ("🟢 Активный" if status == "active" else "🔘 Новичок")
+    status_title = "💜 Лидер" if status == "leader" else ("💚 Активный" if status == "active" else "💙 Новичок")
 
     # если уже active/leader — кнопка активации не нужна, но оставим "Назад"
     if status in ("active", "leader"):
@@ -188,17 +188,16 @@ async def activation_active_info(call: CallbackQuery, db: Database, cfg: Config,
         extra = "\n\n⚠️ <b>Важно:</b> при нажатии «Активировать» с баланса спишется <b>10 USDT</b>."
 
     text = (
-        "🟢 <b>Статус «Активный»</b>\n\n"
-        "Условия:\n"
-        f"• На балансе должно быть <b>{ACTIVE_TOPUP_USDT:.0f} USDT</b> (спишется при активации)\n"
-        f"• Выполнить <b>{ACTIVE_NEED_DONE} заданий</b>\n"
-        f"• Создать <b>{ACTIVE_NEED_CREATED} заданий</b>\n\n"
-        "Ваш прогресс:\n"
-        f"• Баланс USDT: <b>{usdt_balance:.2f}</b>\n"
-        f"• Пополнено всего: <b>{total_topup:.2f}</b>\n"
-        f"• Выполнено: <b>{min(done, ACTIVE_NEED_DONE)}/{ACTIVE_NEED_DONE}</b>\n"
-        f"• Создано: <b>{min(created, ACTIVE_NEED_CREATED)}/{ACTIVE_NEED_CREATED}</b>\n\n"
-        f"Текущий статус: <b>{status_title}</b>"
+        "💚 <b>Статус «Активный»</b>\n\n"
+        "ℹ️ <b>Условия:</b>\n"
+        f"<b>• На балансе должно быть {ACTIVE_TOPUP_USDT:.0f} USDT</b>\n"
+        f"<b>• Выполнить {ACTIVE_NEED_DONE} заданий</b>\n"
+        f"<b>• Создать {ACTIVE_NEED_CREATED} заданий</b>\n\n"
+        "🟢 <b>Ваш прогресс:</b>\n"
+        f"<b>• Баланс USDT: {usdt_balance:.2f}</b>\n"
+        f"<b>• Выполнено: {min(done, ACTIVE_NEED_DONE)}/{ACTIVE_NEED_DONE}</b>\n"
+        f"<b>• Создано: {min(created, ACTIVE_NEED_CREATED)}/{ACTIVE_NEED_CREATED}</b>\n\n"
+        f"<b>Текущий статус: {status_title}</b>"
         f"{extra}"
     )
 
@@ -277,7 +276,7 @@ async def activation_active_apply(call: CallbackQuery, db: Database, cfg: Config
     await premium.answer_html(
         call.message,
         "🎉 <b>Поздравляем!</b>\n\n"
-        "🟢 Статус <b>«Активный»</b> активирован.\n"
+        "💚 Статус <b>«Активный»</b> активирован.\n"
         f"💳 Списано с баланса: <b>{ACTIVE_TOPUP_USDT:.0f} USDT</b>",
         reply_markup=_activation_menu_kb(),
     )
@@ -304,14 +303,14 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
     cnt = _leader_progress_raw(db, tg_id)
 
     text = (
-        "👑 <b>Статус «Лидер»</b>\n\n"
-        "Условия:\n"
-        f"• Привести <b>{LEADER_NEED_REFS} рефералов</b>\n"
-        f"• Каждый должен пополнить <b>от {LEADER_REF_MIN_TOPUP_USDT:.0f} USDT</b>\n\n"
-        "Награды:\n"
-        f"• +<b>{LEADER_BONUS_USDT:.0f} USDT</b> на баланс\n"
-        "• Открывается <b>DIGI → USDT</b> по курсу <b>5000 DIGI = 1 USDT</b>\n\n"
-        f"Ваш прогресс: <b>{cnt}/{LEADER_NEED_REFS}</b>"
+        "💜 <b>Статус «Лидер»</b>\n\n"
+        "ℹ️ <b>Условия:</b>\n"
+        f"<b>• Привести {LEADER_NEED_REFS} рефералов</b>\n"
+        f"<b>• Каждый должен пополнить от {LEADER_REF_MIN_TOPUP_USDT:.0f} USDT</b>\n\n"
+        "🎁 <b>Награды:</b>\n"
+        f"<b>• +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
+        "🔄<b> Вы сможете конвертировать монеты DIGI в USDT и зарабатывать 💵</b>\n\n"
+        f"<b>Ваш прогресс: {cnt}/{LEADER_NEED_REFS}</b>"
     )
 
     await premium.answer_html(call.message, text, reply_markup=_leader_kb())

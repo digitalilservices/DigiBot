@@ -94,7 +94,7 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
             "<b>• Пополнить 10 USDT</b>\n"
             "<b>• Выполнить 7 заданий</b>\n"
             "<b>• Создать 7 заданий</b>\n\n"
-            "👑 <b>Статус «Лидер»</b> тоже открывает вывод."
+            "💜 <b>Статус «Лидер»</b> тоже открывает вывод."
         )
         if isinstance(message_or_call, CallbackQuery):
             await premium.answer_html(
@@ -308,7 +308,7 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
         f"🆔 ID: <b>{req_id}</b>\n"
         f"💵 Сумма: <b>{amount:.2f} USDT</b>\n"
         f"🏦 Кошелек: <code>{address}</code>\n\n"
-        "⏳ Ожидайте обработку администратором.",
+        "⏳ Заявка обрабатывается автоматически.",
         reply_markup=_menu_kb()
     )
     await call.answer("✅ Создано", show_alert=True)

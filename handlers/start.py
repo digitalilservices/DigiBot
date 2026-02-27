@@ -12,7 +12,7 @@ from services.premium_emoji import PremiumEmoji
 
 router = Router()
 
-SIGNUP_BONUS_DIGI = 3000  # стартовый бонус
+SIGNUP_BONUS_DIGI = 8000  # стартовый бонус
 
 
 def _parse_referrer_id(text: str) -> int | None:
@@ -65,9 +65,9 @@ async def cmd_start(message: Message, db: Database, cfg: Config, premium: Premiu
 
     # 1) Приветствие (текст не меняю)
     text = (
-        "✨ <b>Добро пожаловать в DigiBot!</b> экосистему заработка и рекламы!\n\n"
+        "✨ <b>Добро пожаловать в DigiBot!</b> экосистему сервисов заработка и рекламы!\n\n"
         "🪙 <b>Зарабатывай DIGI на заданиях</b>\n"
-        "👥 <b>Получай 2.5 💵 за реферала</b>\n"
+        "👥 <b>Получай 4 💵 за реферала</b>\n"
         "📢 <b>Продвигай свои проекты</b>\n"
         "🎰 <b>Играй в мини игры</b>\n\n"
         "🔄 <b>Конвертация</b>\n"
@@ -76,7 +76,7 @@ async def cmd_start(message: Message, db: Database, cfg: Config, premium: Premiu
         "📝 Выполняй задания\n"
         "🪙 Получай <b>DIGI</b>\n"
         "🔄 Конвертируй в <b>USDT</b>\n"
-        "🟢 Выводи со статусом <b>«Активный»</b>\n\n"
+        "💚 Выводи со статусом <b>«Активный»</b>\n\n"
         "<b>Выбери раздел в меню ниже</b> 👇"
     )
 

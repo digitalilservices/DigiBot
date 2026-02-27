@@ -249,8 +249,7 @@ async def _render_tasks_page(call: CallbackQuery, db: Database, cfg: Config, kin
 
     if total <= 0:
         text = (
-            "✅ <b>Все задания этого типа закончились</b>\n\n"
-            f"📌 <b>Лимит выполнения/день:</b> <b>{done}/{limit}</b>\n"
+            "✅ <b>Все задания этого типа закончились</b>\n"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="earn_back")]])
         try:

@@ -13,7 +13,7 @@ router = Router()
 
 def cabinet_actions_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⚡️ Активация", callback_data="activation_menu")],
+        [InlineKeyboardButton(text="🟢 Активация статуса", callback_data="activation_menu")],
         [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],
         [InlineKeyboardButton(text="💸 Вывод", callback_data="withdraw_menu")],
     ])
@@ -89,11 +89,11 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
     is_active = status in ("active", "leader")
 
     if status == "leader":
-        status_title = "👑 Лидер"
+        status_title = "💜 Лидер"
     elif status == "active":
-        status_title = "🟢 Активный"
+        status_title = "💚 Активный"
     else:
-        status_title = "🔘 Новичок"
+        status_title = "💙 Новичок"
 
     withdraw_txt = "✅ доступен" if is_active else "❌ заблокирован"
     ref_txt = "✅ доступна" if is_active else "❌ закрыта"

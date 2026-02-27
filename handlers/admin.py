@@ -371,7 +371,7 @@ async def admin_stats(call: CallbackQuery, db: Database, cfg: Config, premium: P
         "📊 <b>Статистика</b>\n\n"
         f"👥 Пользователей: <b>{st['users']}</b>\n"
         f"🟢 Активные (24ч): <b>{st['active_users']}</b>\n"
-        f"💎 Общий баланс (в системе): <b>{int(st['total_balance']):,}</b> DIGI"
+        f"🪙 Общий баланс (в системе): <b>{int(st['total_balance']):,}</b> DIGI"
     )
     await _answer_html(call.message, premium, text, reply_markup=_back_kb())
     await call.answer()
@@ -706,7 +706,7 @@ async def admin_sub_approve(call: CallbackQuery, db: Database, cfg: Config, prem
         await call.bot.send_message(
             user_id,
             "✅ <b>Задание подтверждено!</b>\n\n"
-            f"💎 Начислено: <b>{task_reward:,}</b> DIGI",
+            f"🪙 Начислено: <b>{task_reward:,}</b> DIGI",
             parse_mode="HTML"
         )
     except Exception:
@@ -716,7 +716,7 @@ async def admin_sub_approve(call: CallbackQuery, db: Database, cfg: Config, prem
         call.message,
         premium,
         f"✅ Approved submission <b>#{sub_id}</b>\n"
-        f"💎 Начислено пользователю <code>{user_id}</code>: <b>{task_reward:,}</b> DIGI",
+        f"🪙 Начислено пользователю <code>{user_id}</code>: <b>{task_reward:,}</b> DIGI",
         reply_markup=_back_kb()
     )
     await call.answer("✅ Approve", show_alert=True)
@@ -1151,7 +1151,7 @@ async def admin_give_digi_amount(message: Message, state: FSMContext, db: Databa
             await message.bot.send_message(
                 target_id,
                 "🎁 <b>Вам начислено DIGI</b>\n\n"
-                f"💎 +<b>{amount:,}</b> DIGI",
+                f"🪙 +<b>{amount:,}</b> DIGI",
                 parse_mode="HTML"
             )
         except Exception:
