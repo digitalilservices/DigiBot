@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher, BaseMiddleware
-
+from handlers.status import router as status_router
 from aiohttp import web
 
 from config import load_config
@@ -314,6 +314,7 @@ async def main():
     # routers
     dp.include_router(start_router)
     dp.include_router(cabinet_router)
+    dp.include_router(status_router)
     dp.include_router(topup_router)
     dp.include_router(purchase_router)
     dp.include_router(earn_router)

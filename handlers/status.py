@@ -8,7 +8,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from config import Config
 from database import Database
 from services.premium_emoji import PremiumEmoji
-from services.cryptobot import CryptoBotAPI
 
 router = Router()
 
@@ -31,24 +30,15 @@ def _activation_menu_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="🟢 Активный", callback_data="activation_active_info")
     kb.button(text="👑 Лидер", callback_data="activation_leader_info")
-    kb.button(text="⬅️ Назад", callback_data="cabinet")
+    kb.button(text="⬅️ Назад", callback_data="cabinet")  # оставил как у тебя
     kb.adjust(1)
     return kb.as_markup()
 
 
-def _active_pay_kb():
+def _active_kb():
     kb = InlineKeyboardBuilder()
-    kb.button(text=f"💳 Внести {ACTIVE_TOPUP_USDT:.0f} USDT", callback_data="activation_active_pay")
+    kb.button(text="✅ Активировать", callback_data="activation_active_apply")
     kb.button(text="⬅️ Назад", callback_data="activation_menu")
-    kb.adjust(1)
-    return kb.as_markup()
-
-
-def _invoice_kb(pay_url: str, invoice_id: str):
-    kb = InlineKeyboardBuilder()
-    kb.button(text="💳 Оплатить", url=pay_url)
-    kb.button(text="🔄 Проверить оплату", callback_data=f"activation_check:{invoice_id}")
-    kb.button(text="⬅️ Назад", callback_data="activation_active_info")
     kb.adjust(1)
     return kb.as_markup()
 
@@ -62,43 +52,11 @@ def _leader_kb():
 
 
 # =========================
-# DB helpers (локально, чтобы не зависеть от других файлов)
+# DB helpers (локально)
 # =========================
-def _db_create_topup(db: Database, user_id: int, amount_usdt: float, invoice_id: str):
-    conn = db._connect()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO topups (user_id, amount_usdt, amount_digi, status, invoice_id, created_at)
-        VALUES (?, ?, 0, 'pending', ?, datetime('now'))
-        """,
-        (int(user_id), float(amount_usdt), str(invoice_id)),
-    )
-    conn.commit()
-    conn.close()
-
-
-def _db_get_topup_by_invoice(db: Database, invoice_id: str):
-    conn = db._connect()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM topups WHERE invoice_id=?", (str(invoice_id),))
-    row = cur.fetchone()
-    conn.close()
-    return row
-
-
-def _db_mark_topup_paid(db: Database, invoice_id: str):
-    conn = db._connect()
-    cur = conn.cursor()
-    cur.execute("UPDATE topups SET status='paid' WHERE invoice_id=?", (str(invoice_id),))
-    conn.commit()
-    conn.close()
-
-
 def _leader_progress_raw(db: Database, tg_id: int) -> int:
     """
     Считаем сколько приглашённых (invited_by) имеют total_topup_usdt >= 10.
-    Работает даже если referrer_id потом обнуляется.
     """
     conn = db._connect()
     cur = conn.cursor()
@@ -126,13 +84,11 @@ def _try_grant_leader_raw(db: Database, tg_id: int) -> bool:
     try:
         cur.execute("BEGIN IMMEDIATE")
 
-        # убедимся что колонка leader_bonus_given существует (если миграцию ещё не добавил)
-        # если нет — просто не упадём: попробуем ALTER TABLE
+        # миграция: leader_bonus_given
         cur.execute("PRAGMA table_info(users)")
         cols = {r["name"] for r in cur.fetchall()}
         if "leader_bonus_given" not in cols:
             cur.execute("ALTER TABLE users ADD COLUMN leader_bonus_given INTEGER DEFAULT 0")
-            cols.add("leader_bonus_given")
 
         cur.execute("SELECT status, leader_bonus_given FROM users WHERE tg_id=?", (int(tg_id),))
         u = cur.fetchone()
@@ -198,14 +154,13 @@ async def activation_menu(call: CallbackQuery, db: Database, cfg: Config, premiu
 
 
 # =========================
-# ACTIVE: info + invoice
+# ACTIVE: info + manual activate (deduct 10 USDT)
 # =========================
 @router.callback_query(F.data == "activation_active_info")
 async def activation_active_info(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
     tg_id = call.from_user.id
     u = db.get_user(tg_id)
 
-    # если вдруг нет юзера (редко, но бывает)
     if not u:
         db.create_user(
             tg_id=tg_id,
@@ -215,116 +170,120 @@ async def activation_active_info(call: CallbackQuery, db: Database, cfg: Config,
         )
         u = db.get_user(tg_id) or {}
 
+    usdt_balance = float((u["usdt_balance"] if "usdt_balance" in u.keys() else 0.0) or 0.0)
     total_topup = float((u["total_topup_usdt"] if "total_topup_usdt" in u.keys() else 0.0) or 0.0)
     done = int((u["tasks_completed_total"] if "tasks_completed_total" in u.keys() else 0) or 0)
     created = int((u["tasks_created_total"] if "tasks_created_total" in u.keys() else 0) or 0)
     status = str((u["status"] if "status" in u.keys() else "newbie") or "newbie")
 
+    status_title = "👑 Лидер" if status == "leader" else ("🟢 Активный" if status == "active" else "🔘 Новичок")
+
+    # если уже active/leader — кнопка активации не нужна, но оставим "Назад"
+    if status in ("active", "leader"):
+        kb = InlineKeyboardBuilder()
+        kb.button(text="⬅️ Назад", callback_data="activation_menu")
+        kb.adjust(1)
+        reply_kb = kb.as_markup()
+        extra = "\n\n✅ <b>Статус уже активирован.</b>"
+    else:
+        reply_kb = _active_kb()
+        extra = "\n\n⚠️ <b>Важно:</b> при нажатии «Активировать» с баланса спишется <b>10 USDT</b>."
+
     text = (
         "🟢 <b>Статус «Активный»</b>\n\n"
         "Условия:\n"
-        f"• Пополнить <b>{ACTIVE_TOPUP_USDT:.0f} USDT</b>\n"
+        f"• На балансе должно быть <b>{ACTIVE_TOPUP_USDT:.0f} USDT</b> (спишется при активации)\n"
         f"• Выполнить <b>{ACTIVE_NEED_DONE} заданий</b>\n"
         f"• Создать <b>{ACTIVE_NEED_CREATED} заданий</b>\n\n"
         "Ваш прогресс:\n"
-        f"• Пополнено: <b>{total_topup:.2f}/{ACTIVE_TOPUP_USDT:.2f}</b>\n"
+        f"• Баланс USDT: <b>{usdt_balance:.2f}</b>\n"
+        f"• Пополнено всего: <b>{total_topup:.2f}</b>\n"
         f"• Выполнено: <b>{min(done, ACTIVE_NEED_DONE)}/{ACTIVE_NEED_DONE}</b>\n"
         f"• Создано: <b>{min(created, ACTIVE_NEED_CREATED)}/{ACTIVE_NEED_CREATED}</b>\n\n"
-        f"Текущий статус: <b>{'👑 Лидер' if status=='leader' else ('🟢 Активный' if status=='active' else '🔘 Новичок')}</b>"
+        f"Текущий статус: <b>{status_title}</b>"
+        f"{extra}"
     )
 
-    await premium.answer_html(call.message, text, reply_markup=_active_pay_kb())
+    await premium.answer_html(call.message, text, reply_markup=reply_kb)
     await call.answer()
 
 
-@router.callback_query(F.data == "activation_active_pay")
-async def activation_active_pay(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
+@router.callback_query(F.data == "activation_active_apply")
+async def activation_active_apply(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
     tg_id = call.from_user.id
+
     u = db.get_user(tg_id)
-
     if not u:
-        db.create_user(
-            tg_id=tg_id,
-            username=call.from_user.username or "NoUsername",
-            referrer_id=None,
-            first_name=call.from_user.first_name,
-        )
-        u = db.get_user(tg_id)
-
-    if not getattr(cfg, "CRYPTOBOT_TOKEN", None):
-        await call.answer("❌ CRYPTOBOT_TOKEN не задан в .env", show_alert=True)
+        await call.answer("❌ Профиль не найден", show_alert=True)
         return
 
-    api = CryptoBotAPI(
-        token=cfg.CRYPTOBOT_TOKEN,
-        base_url=getattr(cfg, "CRYPTOBOT_API_BASE", "https://pay.crypt.bot/api"),
-    )
-
-    inv = await api.create_invoice(
-        amount=float(ACTIVE_TOPUP_USDT),
-        asset="USDT",
-        description=f"DigiBot • Активация Активный ({ACTIVE_TOPUP_USDT:.0f} USDT)",
-    )
-
-    invoice_id = str(inv["invoice_id"])
-    pay_url = str(inv["pay_url"])
-
-    _db_create_topup(db, user_id=int(u["tg_id"]), amount_usdt=float(ACTIVE_TOPUP_USDT), invoice_id=invoice_id)
-
-    await premium.answer_html(
-        call.message,
-        f"🧾 <b>Счёт на {ACTIVE_TOPUP_USDT:.0f} USDT создан</b>\n\n"
-        "Нажмите <b>Оплатить</b>, затем <b>Проверить оплату</b>.",
-        reply_markup=_invoice_kb(pay_url, invoice_id),
-    )
-    await call.answer()
-
-
-@router.callback_query(F.data.startswith("activation_check:"))
-async def activation_check(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
-    invoice_id = call.data.split(":", 1)[1].strip()
-
-    topup = _db_get_topup_by_invoice(db, invoice_id)
-    if not topup:
-        await call.answer("❌ Счёт не найден", show_alert=True)
+    status = str((u["status"] if "status" in u.keys() else "newbie") or "newbie")
+    if status in ("active", "leader"):
+        await call.answer("✅ Статус уже активен", show_alert=True)
         return
 
-    if str(topup["status"] or "") == "paid":
-        await call.answer("✅ Уже оплачено", show_alert=True)
+    # проверки по прогрессу
+    done = int((u["tasks_completed_total"] if "tasks_completed_total" in u.keys() else 0) or 0)
+    created = int((u["tasks_created_total"] if "tasks_created_total" in u.keys() else 0) or 0)
+
+    if done < ACTIVE_NEED_DONE:
+        await call.answer("⛔ Нужно выполнить 7 заданий", show_alert=True)
+        return
+    if created < ACTIVE_NEED_CREATED:
+        await call.answer("⛔ Нужно создать 7 заданий", show_alert=True)
         return
 
-    api = CryptoBotAPI(
-        token=cfg.CRYPTOBOT_TOKEN,
-        base_url=getattr(cfg, "CRYPTOBOT_API_BASE", "https://pay.crypt.bot/api"),
-    )
-    info = await api.get_invoice(invoice_id=str(invoice_id))
-    status = str(info.get("status") or "").lower()
-
-    if status != "paid":
-        await call.answer("⏳ Пока не оплачено", show_alert=True)
-        return
-
-    user_id = int(topup["user_id"])
-    amount = float(topup["amount_usdt"] or ACTIVE_TOPUP_USDT)
-
-    # зачисляем
-    db.add_usdt(user_id, amount)
-    _db_mark_topup_paid(db, invoice_id)
-
-    # пробуем активировать (после пополнения) — статус станет active, если 7/7 и 7/7 выполнены
+    # ✅ списываем 10 USDT и ставим active (атомарно)
+    conn = db._connect()
+    cur = conn.cursor()
     try:
-        db.try_activate_user(user_id)
+        cur.execute("BEGIN IMMEDIATE")
+
+        cur.execute("SELECT usdt_balance, status FROM users WHERE tg_id=?", (int(tg_id),))
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            await call.answer("❌ Пользователь не найден", show_alert=True)
+            return
+
+        current_bal = float(row["usdt_balance"] or 0.0)
+        current_status = str(row["status"] or "newbie")
+        if current_status in ("active", "leader"):
+            conn.rollback()
+            await call.answer("✅ Уже активен", show_alert=True)
+            return
+
+        if current_bal + 1e-9 < ACTIVE_TOPUP_USDT:
+            conn.rollback()
+            await call.answer("⛔ Недостаточно USDT (нужно 10)", show_alert=True)
+            return
+
+        cur.execute(
+            """
+            UPDATE users
+            SET usdt_balance = usdt_balance - ?,
+                status = 'active'
+            WHERE tg_id=?
+            """,
+            (float(ACTIVE_TOPUP_USDT), int(tg_id)),
+        )
+
+        conn.commit()
     except Exception:
-        pass
+        conn.rollback()
+        await call.answer("Ошибка активации", show_alert=True)
+        return
+    finally:
+        conn.close()
 
     await premium.answer_html(
         call.message,
-        "✅ <b>Оплата подтверждена!</b>\n\n"
-        f"💵 Пополнено: <b>{amount:.2f} USDT</b>\n"
-        f"Если выполнены задания <b>{ACTIVE_NEED_DONE}/{ACTIVE_NEED_DONE}</b> и <b>{ACTIVE_NEED_CREATED}/{ACTIVE_NEED_CREATED}</b> — статус станет <b>Активный</b> автоматически.",
-        reply_markup=_active_pay_kb(),
+        "🎉 <b>Поздравляем!</b>\n\n"
+        "🟢 Статус <b>«Активный»</b> активирован.\n"
+        f"💳 Списано с баланса: <b>{ACTIVE_TOPUP_USDT:.0f} USDT</b>",
+        reply_markup=_activation_menu_kb(),
     )
-    await call.answer("✅ Оплачено!", show_alert=True)
+    await call.answer("✅ Активировано!", show_alert=True)
 
 
 # =========================
