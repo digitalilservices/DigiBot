@@ -281,8 +281,8 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
         call.message,
         "✅ <b>Заявка на вывод создана</b>\n\n"
         f"🆔 ID: <b>{req_id}</b>\n"
-        f"💵 Сумма: <b>{amount:.2f} USDT</b>\n"
-        "👛 <b>После проверки вы получите чек</b> @CryptoBot"
+        f"💵 Сумма: <b>{amount:.2f} USDT</b>\n\n"
+        "👛 <b>После проверки вы получите чек</b> @CryptoBot\n"
         "⏳ <b>Заявка обрабатывается автоматически.</b>",
         reply_markup=_menu_kb()
     )

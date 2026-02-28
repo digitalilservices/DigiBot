@@ -1074,7 +1074,7 @@ async def earn_add_qty(message: Message, state: FSMContext, db: Database, premiu
 # =================== OWNER APPROVE/REJECT =================
 # ==========================================================
 @router.callback_query(F.data.startswith("own_ok:"))
-async def owner_approve(call: CallbackQuery, db: Database, cfg: Config):
+async def owner_approve(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
     sub_id = int(call.data.split(":", 1)[1])
     sub = db.market_manual_get(sub_id)
     if not sub:
@@ -1103,11 +1103,18 @@ async def owner_approve(call: CallbackQuery, db: Database, cfg: Config):
         db.market_manual_set_status(sub_id, "rejected")
         await call.answer("⛔ У исполнителя лимит на сегодня. Отклонено.", show_alert=True)
         try:
-            await call.bot.send_message(worker_id, f"⛔ Лимит на сегодня: {limit} заданий. Попробуйте завтра.")
+            await call.bot.send_message(
+                worker_id,
+                premium.format(f"⛔ Лимит на сегодня: {limit} заданий. Попробуйте завтра.")
+            )
         except Exception:
             pass
         try:
-            await call.message.edit_caption((call.message.caption or "") + "\n\n⛔ <b>Лимит исполнителя</b>")
+            await call.message.edit_caption(
+                (call.message.caption or "") +
+                "\n\n" +
+                premium.format("⛔ <b>Лимит исполнителя</b>")
+            )
         except Exception:
             pass
         return
@@ -1121,20 +1128,26 @@ async def owner_approve(call: CallbackQuery, db: Database, cfg: Config):
 
         await call.answer("✅ Зачислено", show_alert=True)
         try:
-            await call.bot.send_message(worker_id, f"✅ Ваш скриншот подтверждён. {msg}")
+            await call.bot.send_message(
+                worker_id,
+                premium.format(f"✅ Ваш скриншот подтверждён. {msg}")
+            )
         except Exception:
             pass
 
         try:
-            await call.message.edit_caption((call.message.caption or "") + "\n\n✅ <b>Подтверждено</b>")
+            await call.message.edit_caption(
+                (call.message.caption or "") +
+                "\n\n" +
+                premium.format("✅ <b>Подтверждено</b>")
+            )
         except Exception:
             pass
     else:
-        await call.answer(msg, show_alert=True)
-
+        await call.answer(str(msg), show_alert=True)
 
 @router.callback_query(F.data.startswith("own_no:"))
-async def owner_reject(call: CallbackQuery, db: Database):
+async def owner_reject(call: CallbackQuery, db: Database, premium: PremiumEmoji):
     sub_id = int(call.data.split(":", 1)[1])
     sub = db.market_manual_get(sub_id)
     if not sub:
@@ -1164,14 +1177,19 @@ async def owner_reject(call: CallbackQuery, db: Database):
     try:
         await call.bot.send_message(
             worker_id,
-            "❌ Скриншот отклонён владельцем.\n"
-            "Попробуйте ещё раз и отправьте новый скриншот."
+            premium.format(
+                "❌ Скриншот отклонён владельцем.\n"
+                "Попробуйте ещё раз и отправьте новый скриншот."
+            )
         )
     except Exception:
         pass
 
     try:
-        await call.message.edit_caption((call.message.caption or "") + "\n\n❌ <b>Отклонено</b>")
+        await call.message.edit_caption(
+            (call.message.caption or "") +
+            "\n\n" +
+            premium.format("❌ <b>Отклонено</b>")
+        )
     except Exception:
-
         pass

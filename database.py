@@ -185,6 +185,18 @@ class Database:
         # market_tasks: source post (for views)
         self._ensure_col(cur, "market_tasks", "src_chat_id", "src_chat_id INTEGER")
         self._ensure_col(cur, "market_tasks", "src_message_id", "src_message_id INTEGER")
+        # --- MINING SYSTEM ---
+        self._ensure_col(cur, "users", "miner_power", "miner_power REAL DEFAULT 1.0")
+        self._ensure_col(cur, "users", "miner_hp", "miner_hp INTEGER DEFAULT 100")
+        self._ensure_col(cur, "users", "miner_stored", "miner_stored REAL DEFAULT 0")
+        self._ensure_col(cur, "users", "miner_last_ts", "miner_last_ts INTEGER DEFAULT 0")
+
+        self._ensure_col(cur, "users", "miner_boost_until", "miner_boost_until INTEGER DEFAULT 0")
+        self._ensure_col(cur, "users", "miner_shield_until", "miner_shield_until INTEGER DEFAULT 0")
+
+        self._ensure_col(cur, "users", "miner_attacks_day", "miner_attacks_day TEXT")
+        self._ensure_col(cur, "users", "miner_attacks_used_today", "miner_attacks_used_today INTEGER DEFAULT 0")
+        self._ensure_col(cur, "users", "miner_attacks_bonus_today", "miner_attacks_bonus_today INTEGER DEFAULT 0")
 
         cur.execute("""
             UPDATE users

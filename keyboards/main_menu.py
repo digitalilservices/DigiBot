@@ -51,8 +51,8 @@ def main_menu_kb(is_admin: bool = False, miniapp_url: str = "") -> ReplyKeyboard
 
     keyboard = [
         [KeyboardButton(text="👤 Кабинет"), KeyboardButton(text="💰 Пополнить")],
-        [games_btn, KeyboardButton(text="💸 Заработать")],
-        [KeyboardButton(text="👥 Реферал")],
+        [games_btn, KeyboardButton(text="⛏ Майнинг"),InlineKeyboardButton(text="🧰 Сервис Digi")],
+        [KeyboardButton(text="💸 Заработать"), KeyboardButton(text="👥 Реферал")],
         [KeyboardButton(text="👨‍💻 Администратор")],
     ]
 
