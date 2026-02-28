@@ -48,21 +48,23 @@ class CryptoBotAPI:
 
                 return data.get("result", {})
 
-    async def create_check(self, asset: str, amount: float):
+    async def create_check(self, asset: str, amount: float) -> Dict[str, Any]:
         """
-        Созение чека через CryptoBot API
+        Создание чека через CryptoBot API
+        Returns: {check_id, bot_check_url, ...}
         """
         payload = {
             "asset": asset,
-            "amount": amount
+            "amount": str(amount),  # CryptoBot любит строки
         }
 
-        data = await self._post("createCheck", payload)
+        result = await self._request("POST", "/createCheck", json=payload)
 
-        if not data.get("ok"):
-            raise Exception(f"CryptoBot error: {data}")
+        if "check_id" not in result or "bot_check_url" not in result:
+            raise CryptoBotError(f"Unexpected createCheck result: {result}")
 
-        return data["result"]
+        return result
+
 
     async def create_invoice(self, amount: float, asset: str = "USDT", description: str = "Invoice") -> Dict[str, Any]:
         """

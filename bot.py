@@ -12,6 +12,7 @@ from aiohttp import web
 from config import load_config
 from database import Database
 from services.premium_emoji import PremiumEmoji
+from services.cryptobot import CryptoBotAPI
 
 from services.webapp_server import create_app
 
@@ -303,6 +304,8 @@ async def main():
     # DI
     dp["cfg"] = cfg
     dp["db"] = db
+    cryptobot = CryptoBotAPI(cfg.CRYPTOBOT_TOKEN)
+    dp["cryptobot"] = cryptobot
 
     # ===== PREMIUM EMOJI (auto-load from your packs) =====
     premium = await PremiumEmoji.from_sticker_sets(
