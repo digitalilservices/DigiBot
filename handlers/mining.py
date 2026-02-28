@@ -21,8 +21,9 @@ router = Router()
 # =========================
 MIN_UPGRADE_DIGI = 100
 
-# доход: DIGI/час = power * RATE_K
-RATE_K = 20.0
+# доход: DIGI/час = power * (hp/100) * RATE_K
+# ✅ старт 1 DIGI/час при power=1 и HP=100
+RATE_K = 5.0
 
 # буст (x2) + бонус атак по пакетам
 BOOST_PACKS = [
@@ -32,6 +33,14 @@ BOOST_PACKS = [
     ("b3", "⚡ 12 часов + 2 атаки", 6.0, 12 * 3600, 2),
     ("b4", "⚡ 24 часа + 5 атак", 10.0, 24 * 3600, 5),
     ("b5", "⚡ 30 дней + 10 атак", 15.0, 30 * 24 * 3600, 10),
+]
+
+# ✅ покупка HP за USDT (без изменения текста меню "Бусты", просто доп. кнопки)
+HP_PACKS = [
+    # (id, title, price_usdt, add_hp)
+    ("h1", "❤️ +20 HP", 2.0, 20),
+    ("h2", "❤️ +50 HP", 4.0, 50),
+    ("h3", "❤️ Полный ремонт (до 100%)", 6.0, 9999),
 ]
 
 SHIELD_PACKS = [
@@ -49,7 +58,7 @@ STEAL_PCT = 0.30
 STEAL_CAP_PER_POWER = 3.0  # max_steal = power * this
 
 POWER_STEAL_PCT = 0.02   # 2% мощности цели
-POWER_STEAL_CAP = 0.25   # но не больше 0.25 за атаку (чтобы не ломали баланс)
+POWER_STEAL_CAP = 0.25   # но не больше 0.25 за атаку
 
 HP_STEAL_PCT = 0.06      # 6% HP цели
 HP_STEAL_CAP = 8         # но не больше 8 HP за атаку
@@ -119,6 +128,11 @@ def _boosts_kb() -> InlineKeyboardMarkup:
     rows = []
     for bid, title, price, _, _ in BOOST_PACKS:
         rows.append([InlineKeyboardButton(text=f"{title} — {price:g} USDT", callback_data=f"mining_buy_boost:{bid}")])
+
+    # ✅ доп. покупки HP (без изменения текста экрана)
+    for hid, title, price, _ in HP_PACKS:
+        rows.append([InlineKeyboardButton(text=f"{title} — {price:g} USDT", callback_data=f"mining_buy_hp:{hid}")])
+
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="mining_open")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -174,7 +188,7 @@ def _apply_mining(conn, tg_id: int) -> float:
     now = _utc_now_ts()
     cur = conn.cursor()
     cur.execute("""
-        SELECT miner_power, miner_last_ts, miner_stored, miner_boost_until
+        SELECT miner_power, miner_hp, miner_last_ts, miner_stored, miner_boost_until
         FROM users WHERE tg_id=?
     """, (tg_id,))
     u = cur.fetchone()
@@ -182,6 +196,7 @@ def _apply_mining(conn, tg_id: int) -> float:
         return 0.0
 
     power = float((u["miner_power"] if "miner_power" in u.keys() else 1.0) or 1.0)
+    hp = int((u["miner_hp"] if "miner_hp" in u.keys() else 100) or 100)
     last_ts = int((u["miner_last_ts"] if "miner_last_ts" in u.keys() else 0) or 0)
     stored = float((u["miner_stored"] if "miner_stored" in u.keys() else 0.0) or 0.0)
     boost_until = int((u["miner_boost_until"] if "miner_boost_until" in u.keys() else 0) or 0)
@@ -195,7 +210,13 @@ def _apply_mining(conn, tg_id: int) -> float:
     if dt <= 0:
         return 0.0
 
-    rate = power * RATE_K
+    # ✅ HP влияет на эффективность. Если HP=0 — майнинг стоит.
+    if hp <= 0:
+        cur.execute("UPDATE users SET miner_last_ts=? WHERE tg_id=?", (now, tg_id))
+        return 0.0
+
+    eff = max(0.0, min(1.0, hp / 100.0))
+    rate = power * eff * RATE_K
     if boost_until > now:
         rate *= 2.0
 
@@ -228,7 +249,8 @@ def _mining_text(user_row, earned_now: float = 0.0) -> str:
     boost_until = int(rget(user_row, "miner_boost_until", 0) or 0)
     shield_until = int(rget(user_row, "miner_shield_until", 0) or 0)
 
-    rate = power * RATE_K
+    eff = max(0.0, min(1.0, hp / 100.0))
+    rate = power * eff * RATE_K
     if boost_until > now:
         rate *= 2.0
 
@@ -350,9 +372,7 @@ async def mining_collect(call: CallbackQuery, db: Database, premium: PremiumEmoj
 
         if stored > 0:
             collected = stored
-
-            # ✅ переводим всё "Намайнено" в баланс как целые DIGI
-            add_int = int(round(stored))  # можно floor если хочешь, но round приятнее игроку
+            add_int = int(round(stored))
 
             cur.execute("""
                 UPDATE users
@@ -419,8 +439,8 @@ async def mining_upgrade_amount(message: Message, state: FSMContext, db: Databas
             await premium.answer_html(message, "❌ Недостаточно DIGI на балансе.")
             return
 
-        power_add = math.sqrt(amount) / 10.0  # 100 -> +1.0
-        new_power = power + power_add
+        power_add = round(math.sqrt(amount) / 100.0, 4)
+        new_power = round(power + power_add, 4)
 
         cur.execute("""
             UPDATE users
@@ -428,7 +448,7 @@ async def mining_upgrade_amount(message: Message, state: FSMContext, db: Databas
                 miner_power=?,
                 total_spent_digi=COALESCE(total_spent_digi,0)+?
             WHERE tg_id=?
-        """, (bal - amount, float(f"{new_power:.4f}"), amount, tg_id))
+        """, (bal - amount, new_power, amount, tg_id))
 
         conn.commit()
     except Exception:
@@ -499,6 +519,58 @@ async def mining_buy_boost(call: CallbackQuery, db: Database, premium: PremiumEm
                 miner_attacks_bonus_today=?
             WHERE tg_id=?
         """, (usdt - float(price), new_boost_until, bonus_today + int(bonus_attacks), tg_id))
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        await call.answer("❌ Ошибка покупки", show_alert=True)
+        return
+    finally:
+        conn.close()
+
+    await call.answer(f"✅ Куплено: {title}")
+    await mining_open(call, db, premium)
+
+
+@router.callback_query(F.data.startswith("mining_buy_hp:"))
+async def mining_buy_hp(call: CallbackQuery, db: Database, premium: PremiumEmoji):
+    tg_id = call.from_user.id
+    hid = call.data.split(":", 1)[1]
+    pack = next((p for p in HP_PACKS if p[0] == hid), None)
+    if not pack:
+        await call.answer("Пакет не найден", show_alert=True)
+        return
+
+    _, title, price, add_hp = pack
+
+    conn = db._connect()
+    cur = conn.cursor()
+    try:
+        cur.execute("BEGIN IMMEDIATE")
+        _reset_daily_attacks_if_needed(conn, tg_id)
+        _apply_mining(conn, tg_id)
+
+        cur.execute("SELECT usdt_balance, miner_hp FROM users WHERE tg_id=?", (tg_id,))
+        r = cur.fetchone()
+        usdt = float((r["usdt_balance"] if r else 0.0) or 0.0)
+        hp = int((r["miner_hp"] if r else 100) or 100)
+
+        if usdt + 1e-9 < float(price):
+            conn.rollback()
+            await call.answer("❌ Недостаточно USDT", show_alert=True)
+            return
+
+        if add_hp >= 9999:
+            new_hp = 100
+        else:
+            new_hp = min(100, hp + int(add_hp))
+
+        cur.execute("""
+            UPDATE users
+            SET usdt_balance=?,
+                miner_hp=?
+            WHERE tg_id=?
+        """, (usdt - float(price), new_hp, tg_id))
 
         conn.commit()
     except Exception:
@@ -671,10 +743,16 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
     conn = db._connect()
     cur = conn.cursor()
 
-    stolen = 0.0
-    dmg = 0
+    stolen = 0.0     # ✅ будет равно steal, чтобы текст не показывал 0.00
+    dmg = 0          # ✅ будет равно hp_steal, чтобы "Урон цели" был не 0
     blocked = False
     reason = ""
+
+    # для пуша (жертве)
+    new_t_stored = 0.0
+    power_steal = 0.0
+    hp_steal = 0
+
     try:
         cur.execute("BEGIN IMMEDIATE")
 
@@ -712,7 +790,7 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
             conn.rollback()
         else:
             cur.execute("""
-                SELECT username, miner_stored, miner_hp, miner_shield_until
+                SELECT username, miner_stored, miner_hp, miner_shield_until, miner_power
                 FROM users WHERE tg_id=?
             """, (target_id,))
             t = cur.fetchone()
@@ -728,46 +806,38 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
             else:
                 t_stored = float((t["miner_stored"] if "miner_stored" in t.keys() else 0.0) or 0.0)
                 t_hp = int((t["miner_hp"] if "miner_hp" in t.keys() else 100) or 100)
-
-                # мощность цели
-                cur.execute("SELECT miner_power FROM users WHERE tg_id=?", (target_id,))
-                tp = cur.fetchone()
-                t_power = float((tp["miner_power"] if tp else 1.0) or 1.0)
+                t_power = float((t["miner_power"] if "miner_power" in t.keys() else 1.0) or 1.0)
 
                 # --- DIGI steal ---
                 max_steal = attacker_power * STEAL_CAP_PER_POWER
                 steal = min(t_stored * STEAL_PCT, max_steal)
                 steal = float(f"{steal:.2f}")
 
-                # --- steal POWER (маленько) ---
+                # --- steal POWER (снимаем у цели, НЕ добавляем атакеру) ---
                 power_steal = min(t_power * POWER_STEAL_PCT, POWER_STEAL_CAP)
                 power_steal = float(f"{power_steal:.3f}")
 
-                # --- steal HP (маленько) ---
+                # --- steal HP (снимаем у цели и добавляем атакеру) ---
                 hp_steal = min(int(round(t_hp * HP_STEAL_PCT)), HP_STEAL_CAP)
                 hp_steal = max(0, hp_steal)
 
-                # применяем
                 new_t_stored = float(f"{max(0.0, t_stored - steal):.4f}")
-                new_t_power = float(f"{max(0.2, t_power - power_steal):.4f}")  # минимум 0.2
+                new_t_power = float(f"{max(0.2, t_power - power_steal):.4f}")
                 new_t_hp = max(0, t_hp - hp_steal)
 
-                # атакующий получает DIGI в баланс, а также +мощность и +HP чуть-чуть
-                cur.execute("SELECT balance_digi, miner_stored, miner_power, miner_hp FROM users WHERE tg_id=?", (tg_id,))
+                # атакующий получает DIGI в баланс (как у тебя)
+                cur.execute("SELECT balance_digi, miner_hp FROM users WHERE tg_id=?", (tg_id,))
                 a2 = cur.fetchone()
                 a_bal = int((a2["balance_digi"] if a2 else 0) or 0)
-                a_stored = float((a2["miner_stored"] if a2 else 0.0) or 0.0)
-                a_power = float((a2["miner_power"] if a2 else 1.0) or 1.0)
                 a_hp = int((a2["miner_hp"] if a2 else 100) or 100)
 
-                add_int = int(round(steal))  # чтобы не было "не пропало"
+                add_int = int(round(steal))
                 cur.execute("""
                     UPDATE users
                     SET balance_digi=?,
-                        miner_power=?,
                         miner_hp=?
                     WHERE tg_id=?
-                """, (a_bal + add_int, float(f"{a_power + power_steal:.4f}"), min(100, a_hp + hp_steal), tg_id))
+                """, (a_bal + add_int, min(100, a_hp + hp_steal), tg_id))
 
                 # цель теряет stored, мощность, hp
                 cur.execute("""
@@ -778,6 +848,7 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
                     WHERE tg_id=?
                 """, (new_t_stored, new_t_power, new_t_hp, target_id))
 
+                # списываем попытку атаки
                 cur.execute("""
                     UPDATE users
                     SET miner_attacks_used_today=?,
@@ -785,16 +856,20 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
                     WHERE tg_id=?
                 """, (new_used, new_bonus, tg_id))
 
+                # ✅ фикс для текста результата:
+                stolen = steal
+                dmg = hp_steal
+
                 conn.commit()
 
-                # пуш-уведомление цели
+                # пуш-уведомление цели (текст НЕ меняю, только данные правильные)
                 try:
                     attacker_un = call.from_user.username or "NoUsername"
                     attacker_tag = ("@" + attacker_un) if attacker_un and not attacker_un.startswith("@") else attacker_un
                     push = (
                         "🚨 <b>Вас атакуют!</b>\n\n"
                         f"🎯 Атакующий: {attacker_tag}\n"
-                        f"🔻 Украдено: <b>{_fmt2(steal)}</b> DIGI\n"
+                        f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DIGI\n"
                         f"⚡ Потеря мощности: <b>-{_fmt2(power_steal)}</b>\n"
                         f"❤️ Потеря HP: <b>-{hp_steal}%</b>\n"
                         f"📦 Осталось в хранилище: <b>{_fmt2(new_t_stored)}</b> DIGI"
@@ -823,6 +898,7 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
         ))
         return
 
+    # ✅ Текст НЕ трогаю, просто теперь stolen/dmg будут правильными
     res = (
         "✅ <b>Атака завершена!</b>\n\n"
         f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DIGI\n"
