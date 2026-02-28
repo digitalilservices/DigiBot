@@ -48,6 +48,22 @@ class CryptoBotAPI:
 
                 return data.get("result", {})
 
+    async def create_check(self, asset: str, amount: float):
+        """
+        Созение чека через CryptoBot API
+        """
+        payload = {
+            "asset": asset,
+            "amount": amount
+        }
+
+        data = await self._post("createCheck", payload)
+
+        if not data.get("ok"):
+            raise Exception(f"CryptoBot error: {data}")
+
+        return data["result"]
+
     async def create_invoice(self, amount: float, asset: str = "USDT", description: str = "Invoice") -> Dict[str, Any]:
         """
         Returns: {invoice_id, pay_url, status, ...}

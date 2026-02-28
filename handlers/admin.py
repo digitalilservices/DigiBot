@@ -5,11 +5,12 @@ import sqlite3
 import math
 
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-
+from services.cryptobot import CryptoBotAPI
+from datetime import datetime
 from config import Config
 from database import Database
 from keyboards.admin_menu import admin_panel_inline, admin_tasks_inline, admin_ads_inline
@@ -230,6 +231,11 @@ def _ensure_withdraw_table(db: Database):
     cols = {row["name"] for row in cur.fetchall()}
     if "source" not in cols:
         cur.execute("ALTER TABLE withdraw_requests ADD COLUMN source TEXT NOT NULL DEFAULT 'ref'")
+    if "check_id" not in cols:
+        cur.execute("ALTER TABLE withdraw_requests ADD COLUMN check_id INTEGER")
+
+    if "check_url" not in cols:
+        cur.execute("ALTER TABLE withdraw_requests ADD COLUMN check_url TEXT")
 
     conn.commit()
     conn.close()
@@ -1181,7 +1187,7 @@ async def admin_wd_page(call: CallbackQuery, db: Database, cfg: Config, premium:
 
 
 @router.callback_query(F.data.startswith("admin_wd_process:"))
-async def admin_wd_process(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
+async def admin_wd_process(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji, cryptobot: CryptoBotAPI):
     if not _admin_guard(call, cfg):
         await call.answer("⛔️ Нет доступа", show_alert=True)
         return
@@ -1189,15 +1195,15 @@ async def admin_wd_process(call: CallbackQuery, db: Database, cfg: Config, premi
     req_id = int(call.data.split(":", 1)[1])
     _ensure_withdraw_table(db)
 
-    user_id = None
-    amount = 0.0
-
     conn = db._connect()
     cur = conn.cursor()
+
     try:
         cur.execute("BEGIN IMMEDIATE")
+
         cur.execute("SELECT * FROM withdraw_requests WHERE id=?", (req_id,))
         r = cur.fetchone()
+
         if not r or r["status"] != "pending":
             conn.rollback()
             await call.answer("❌ Не найдено / уже обработано", show_alert=True)
@@ -1206,36 +1212,75 @@ async def admin_wd_process(call: CallbackQuery, db: Database, cfg: Config, premi
         user_id = int(r["user_id"])
         amount = float(r["amount_usdt"])
 
+        # временный статус
         cur.execute("""
             UPDATE withdraw_requests
-            SET status='processed',
-                processed_at=datetime('now'),
-                processed_by=?
+            SET status='processing'
             WHERE id=?
-        """, (int(call.from_user.id), req_id))
-
+        """, (req_id,))
         conn.commit()
+
     except Exception:
         conn.rollback()
-        await call.answer("Ошибка", show_alert=True)
+        await call.answer("Ошибка БД", show_alert=True)
         return
     finally:
         conn.close()
 
+    # 🔥 создаём чек через CryptoBot
+    try:
+        check = await cryptobot.create_check(asset="USDT", amount=amount)
+        check_url = check["bot_check_url"]
+        check_id = check["check_id"]
+    except Exception as e:
+        # возвращаем статус обратно
+        conn = db._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE withdraw_requests
+            SET status='pending'
+            WHERE id=?
+        """, (req_id,))
+        conn.commit()
+        conn.close()
+
+        await call.answer(f"CryptoBot error: {e}", show_alert=True)
+        return
+
+    # сохраняем чек
+    conn = db._connect()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE withdraw_requests
+        SET status='processed',
+            processed_at=datetime('now'),
+            processed_by=?,
+            check_id=?,
+            check_url=?
+        WHERE id=?
+    """, (int(call.from_user.id), check_id, check_url, req_id))
+    conn.commit()
+    conn.close()
+
+    # отправляем пользователю чек
     try:
         await call.bot.send_message(
             user_id,
-            "✅ <b>Заявка на вывод подтверждена</b>\n\n"
-            f"🆔 ID: <b>{req_id}</b>\n"
-            "👨‍💻 Администратор: @illy228\n"
+            f"✅ <b>Ваша выплата готова!</b>\n\n"
             f"💵 Сумма: <b>{amount:.2f} USDT</b>\n\n"
-            "⏳ Ожидайте поступление средств на ваш кошелёк.",
+            "Нажмите кнопку ниже чтобы получить чек:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="💸 Получить USDT",
+                    url=check_url
+                )]
+            ]),
             parse_mode="HTML"
         )
     except Exception:
         pass
 
-    await call.answer("✅ Processed", show_alert=True)
+    await call.answer("✅ Чек создан и отправлен", show_alert=True)
     await _admin_show_withdraw_page(call, db, page=0, premium=premium)
 
 @router.callback_query(F.data.startswith("admin_wd_deny:"))

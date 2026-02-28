@@ -17,7 +17,6 @@ router = Router()
 
 class WithdrawStates(StatesGroup):
     waiting_amount = State()
-    waiting_address = State()
     confirm = State()
 
 
@@ -94,7 +93,7 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
             "<b>• Пополнить 10 USDT</b>\n"
             "<b>• Выполнить 7 заданий</b>\n"
             "<b>• Создать 7 заданий</b>\n\n"
-            "💜 <b>Статус «Лидер»</b> тоже открывает вывод."
+            "👛 <b>Вывод средств происходит автоматически. После создания заявки вы получите чек в</b> @CryptoBot."
         )
         if isinstance(message_or_call, CallbackQuery):
             await premium.answer_html(
@@ -201,38 +200,15 @@ async def withdraw_amount(message: Message, state: FSMContext, db: Database, cfg
         return
 
     await state.update_data(amount=float(amount))
-    await state.set_state(WithdrawStates.waiting_address)
-
-    await premium.answer_html(
-        message,
-        "🏦 Введите адрес кошелька для вывода <b>USDT</b>:\n\n"
-        "<i>Сеть строго - TON</i>",
-        reply_markup=_back_kb("withdraw_cancel")
-    )
-
-
-@router.message(WithdrawStates.waiting_address)
-async def withdraw_address(message: Message, state: FSMContext, premium: PremiumEmoji):
-    addr = (message.text or "").strip()
-    if len(addr) < 10:
-        await premium.answer_html(message, "❌ Адрес слишком короткий. Введите корректный адрес кошелька.")
-        return
-
-    await state.update_data(address=addr)
     await state.set_state(WithdrawStates.confirm)
-
-    data = await state.get_data()
-    amount = float(data.get("amount", 0.0))
 
     await premium.answer_html(
         message,
         "✅ <b>Подтвердите заявку</b>\n\n"
-        f"💵 Сумма: <b>{amount:.2f} USDT</b>\n"
-        f"🏦 Кошелек: <code>{addr}</code>\n\n"
-        "После подтверждения сумма будет списана с <b>основного USDT баланса</b> и уйдет на обработку.",
+        f"💵 Сумма: <b>{amount:.2f} USDT</b>\n\n"
+        "После подтверждения сумма будет списана с основного баланса и отправлена на обработку.",
         reply_markup=_confirm_kb()
     )
-
 
 @router.callback_query(F.data == "withdraw_confirm")
 async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
@@ -253,9 +229,8 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
 
     data = await state.get_data()
     amount = float(data.get("amount", 0.0))
-    address = str(data.get("address", "") or "").strip()
 
-    if amount <= 0 or len(address) < 10:
+    if amount <= 0:
         await call.answer("Ошибка данных заявки", show_alert=True)
         return
 
@@ -287,8 +262,8 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
 
         cur.execute("""
             INSERT INTO withdraw_requests (user_id, source, amount_usdt, address, status, created_at)
-            VALUES (?, 'usdt', ?, ?, 'pending', datetime('now'))
-        """, (int(tg_id), float(amount), address))
+            VALUES (?, 'usdt', ?, '', 'pending', datetime('now'))
+        """, (int(tg_id), float(amount)))
 
         req_id = int(cur.lastrowid)
         conn.commit()
@@ -307,8 +282,8 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
         "✅ <b>Заявка на вывод создана</b>\n\n"
         f"🆔 ID: <b>{req_id}</b>\n"
         f"💵 Сумма: <b>{amount:.2f} USDT</b>\n"
-        f"🏦 Кошелек: <code>{address}</code>\n\n"
-        "⏳ Заявка обрабатывается автоматически.",
+        "👛 <b>После проверки вы получите чек</b> @CryptoBot"
+        "⏳ <b>Заявка обрабатывается автоматически.</b>",
         reply_markup=_menu_kb()
     )
     await call.answer("✅ Создано", show_alert=True)
