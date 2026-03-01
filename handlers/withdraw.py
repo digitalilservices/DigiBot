@@ -93,11 +93,11 @@ def _is_active(db: Database, tg_id: int) -> bool:
     except Exception:
         return False
 
-
 async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
     await state.clear()
     tg_id = message_or_call.from_user.id
 
+    # ---- НЕ АКТИВНЫЙ: показываем инфо + кнопку видео ----
     if not _is_active(db, tg_id):
         text = (
             "⛔️ <b>Вывод недоступен</b>\n\n"
@@ -112,31 +112,16 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
             is_admin=(message_or_call.from_user.id == cfg.ADMIN_ID),
             miniapp_url=cfg.WEBAPP_URL
         )
-
         kb = _with_proof_video_kb(base_kb)
 
         if isinstance(message_or_call, CallbackQuery):
-            await premium.answer_html(
-                message_or_call.message,
-                text,
-                reply_markup=main_menu_kb(
-                    is_admin=(message_or_call.from_user.id == cfg.ADMIN_ID),
-                    miniapp_url=cfg.WEBAPP_URL
-                )
-            )
+            await premium.answer_html(message_or_call.message, text, reply_markup=kb)
             await message_or_call.answer()
         else:
-            await premium.answer_html(
-                message_or_call,
-                text,
-                reply_markup=main_menu_kb(
-                    is_admin=(message_or_call.from_user.id == cfg.ADMIN_ID),
-                    miniapp_url=cfg.WEBAPP_URL
-                )
-            )
+            await premium.answer_html(message_or_call, text, reply_markup=kb)
         return
 
-    # ✅ теперь вывод только с основного USDT баланса
+    # ---- АКТИВНЫЙ: обычный вывод ----
     try:
         usdt_bal = float(db.get_usdt_balance(tg_id) or 0.0)
     except Exception:
