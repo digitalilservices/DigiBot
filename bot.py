@@ -337,7 +337,7 @@ async def main():
 
     # ===== MINI APP SERVER (aiohttp) =====
     # В config должны быть: WEBAPP_HOST, WEBAPP_PORT
-    app = create_app(db=db, bot_token=cfg.BOT_TOKEN)
+    app = create_app(db=db, bot_token=cfg.BOT_TOKEN, internal_api_key=cfg.INTERNAL_STATUS_API_KEY)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host=getattr(cfg, "WEBAPP_HOST", "0.0.0.0"), port=int(getattr(cfg, "WEBAPP_PORT", 8080)))

@@ -109,6 +109,7 @@ class Config:
     WEBAPP_URL: str
     WEBAPP_HOST: str
     WEBAPP_PORT: int
+    INTERNAL_STATUS_API_KEY: str
 
 def load_config() -> Config:
     return Config(
@@ -178,7 +179,8 @@ def load_config() -> Config:
 
         WEBAPP_URL=os.getenv("WEBAPP_URL", "https://your-domain.com/miniapp/"),
         WEBAPP_HOST=os.getenv("WEBAPP_HOST", "0.0.0.0"),
-        WEBAPP_PORT=int(os.getenv("WEBAPP_PORT") or os.getenv("PORT") or "8080")
+        WEBAPP_PORT=int(os.getenv("WEBAPP_PORT") or os.getenv("PORT") or "8080"),
+        INTERNAL_STATUS_API_KEY = _get_env("INTERNAL_STATUS_API_KEY")
 
     )
 

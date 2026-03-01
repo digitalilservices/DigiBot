@@ -66,13 +66,13 @@ def _weighted_choice(values: list[float], probs: list[float]) -> float:
 # ---------------- Game settings ----------------
 WHEEL_COST = 1.0
 WHEEL_VALUES = [100, 250, 50, 25, 10, 5, 2, 1, 1.2, 0.5, 0.7]
-WHEEL_PROBS  = [0.00005, 0.00002, 0.00010, 0.00020, 0.00100, 0.00500, 0.04000, 0.12000, 0.06000, 0.49363, 0.28000]
+WHEEL_PROBS = [0.00005, 0.00002, 0.00010, 0.00020, 0.00100, 0.00500, 0.04000, 0.12000, 0.06000, 0.49363, 0.28000]
 
 BOX_TIERS = {
-    2:   {"price": 2.0, "max_win": 20.0},
-    7:   {"price": 7.0, "max_win": 50.0},
-    20:  {"price": 20.0, "max_win": 150.0},
-    50:  {"price": 50.0, "max_win": 300.0},
+    2: {"price": 2.0, "max_win": 20.0},
+    7: {"price": 7.0, "max_win": 50.0},
+    20: {"price": 20.0, "max_win": 150.0},
+    50: {"price": 50.0, "max_win": 300.0},
     100: {"price": 100.0, "max_win": 500.0},
     250: {"price": 250.0, "max_win": 1000.0},
 }
@@ -82,10 +82,11 @@ BOX_PROBS = [0.08, 0.22, 0.28, 0.22, 0.14, 0.05, 0.009, 0.001]
 
 
 class MiniAppServer:
-    def __init__(self, db: Database, bot_token: str, static_dir: Path):
+    def __init__(self, db: Database, bot_token: str, static_dir: Path, internal_api_key: str):
         self.db = db
         self.bot_token = bot_token
         self.static_dir = static_dir
+        self.internal_api_key = (internal_api_key or "").strip()
 
     async def _get_init_data(self, request: web.Request) -> str:
         # 1) Header
@@ -152,8 +153,8 @@ class MiniAppServer:
 
         win = float(_weighted_choice(WHEEL_VALUES, WHEEL_PROBS))
 
-        # ✅ play_game_usdt после твоих правок должен:
-        # списать bet из usdt_balance и добавить win туда же (т.е. usdt_balance = usdt_balance - bet + win)
+        # ✅ play_game_usdt должен:
+        # списать bet из usdt_balance и добавить win туда же
         ok, new_bal, msg = self.db.play_game_usdt(
             tg_id=uid,
             bet_usdt=float(WHEEL_COST),
@@ -211,10 +212,47 @@ class MiniAppServer:
             "usdt_balance": float(new_bal),
         })
 
+    async def handle_internal_status(self, request: web.Request) -> web.Response:
+        """
+        Закрытый эндпоинт для других ботов (НЕ для пользователей).
+        Авторизация: заголовок X-API-Key == INTERNAL_STATUS_API_KEY
+        Body: { "tg_id": 123 }
+        """
+        api_key = (request.headers.get("X-API-Key") or "").strip()
+        if not self.internal_api_key or api_key != self.internal_api_key:
+            return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
 
-def create_app(db: Database, bot_token: str) -> web.Application:
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+
+        try:
+            tg_id = int(data.get("tg_id") or 0)
+        except Exception:
+            tg_id = 0
+
+        if tg_id <= 0:
+            return web.json_response({"ok": False, "error": "bad_tg_id"}, status=400)
+
+        try:
+            status = self.db.get_status(tg_id)
+        except Exception:
+            status = "newbie"
+
+        is_active = status in ("active", "leader")
+
+        return web.json_response({
+            "ok": True,
+            "tg_id": tg_id,
+            "status": status,
+            "is_active": bool(is_active),
+        })
+
+
+def create_app(db: Database, bot_token: str, internal_api_key: str) -> web.Application:
     static_dir = Path(__file__).resolve().parents[1] / "miniapp"
-    srv = MiniAppServer(db=db, bot_token=bot_token, static_dir=static_dir)
+    srv = MiniAppServer(db=db, bot_token=bot_token, static_dir=static_dir, internal_api_key=internal_api_key)
 
     app = web.Application()
 
@@ -229,5 +267,8 @@ def create_app(db: Database, bot_token: str) -> web.Application:
 
     app.router.add_post("/api/wheel/spin", srv.handle_wheel_spin)
     app.router.add_post("/api/box/open", srv.handle_box_open)
+
+    # ✅ Внутренний эндпоинт для других ботов
+    app.router.add_post("/internal/status", srv.handle_internal_status)
 
     return app

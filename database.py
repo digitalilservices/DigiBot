@@ -157,6 +157,7 @@ class Database:
         # users: add usdt balance + plan + vip_until + daily counters
         # --- NEW STATUS SYSTEM (Novichok / Active)
         # --- LEADER STATUS ---
+        self._ensure_col(cur, "users", "status", "status TEXT NOT NULL DEFAULT 'newbie'")
         self._ensure_col(cur, "users", "leader_bonus_given", "leader_bonus_given INTEGER DEFAULT 0")
         self._ensure_col(cur, "users", "status", "status TEXT DEFAULT 'newbie'")
         self._ensure_col(cur, "users", "ref_balance_usdt", "ref_balance_usdt REAL DEFAULT 0")
