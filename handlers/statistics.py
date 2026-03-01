@@ -14,18 +14,13 @@ router = Router()
 async def app_statistics(message: Message, db: Database, premium: PremiumEmoji):
     st = db.get_app_stats()
 
-    text = (
+    html = (
         "📊 <b>Статистика приложения DigiBot за все время</b>\n\n"
-        f"💵 <b>Оборот: ${st['turnover_usdt']:.2f}</b>\n"
-        f"🧾 <b>Количество созданных счетов: {st['invoices_created']}</b>\n"
-        f"✅ <b>Количество оплат: {st['payments_count']}</b>\n\n"
-        f"📈 <b>Конверсия: {st['conversion_pct']}%</b>\n"
+        f"💵 <b>Оборот:</b> <b>${st['turnover_usdt']:.2f}</b>\n\n"
+        f"🧾 <b>Количество созданных счетов:</b> <b>{st['invoices_created']}</b>\n"
+        f"✅ <b>Количество оплат:</b> <b>{st['payments_count']}</b>\n\n"
+        f"📈 <b>Конверсия:</b> <b>{st['conversion_pct']}%</b>\n"
     )
 
-    # если premium.format у тебя где-то может падать — можно не форматировать
-    try:
-        text = premium.format(text)
-    except Exception:
-        pass
-
-    await message.answer(text, parse_mode="HTML")
+    # ВАЖНО: отправляем через PremiumEmoji.answer_html (entities + custom_emoji)
+    await premium.answer_html(message, html)
