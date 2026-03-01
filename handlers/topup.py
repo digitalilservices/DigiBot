@@ -151,7 +151,7 @@ async def topup_entry(message: Message, state: FSMContext, cfg: Config, premium:
     text = (
         "💵 <b>Пополнение</b>\n\n"
         "Выберите способ 👇\n\n"
-        f"💳 <b>USDT</b> через CryptoBot\n\n"
+        f"💳 <b>USDT</b> через @CryptoBot\n\n"
         f"🪙 <b>DIGI</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DIGI</b>"
     )
     await premium.answer_html(message, text, reply_markup=_topup_choose_kb().as_markup())
@@ -340,7 +340,7 @@ async def topup_back_to_choose(call: CallbackQuery, state: FSMContext, cfg: Conf
     text = (
         "💵 <b>Пополнение</b>\n\n"
         "Выберите способ 👇\n\n"
-        f"💳 <b>USDT</b> через CryptoBot\n\n"
+        f"💳 <b>USDT</b> через @CryptoBot\n\n"
         f"🪙 <b>DIGI</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DIGI</b>"
     )
     await premium.answer_html(call.message, text, reply_markup=_topup_choose_kb().as_markup())

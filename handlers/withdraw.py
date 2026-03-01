@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from services.premium_emoji import PremiumEmoji
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import Config
 from database import Database
 from keyboards.main_menu import main_menu_kb
@@ -21,6 +22,17 @@ class WithdrawStates(StatesGroup):
 
 
 WITHDRAW_MIN = 0.01  # минимальная сумма вывода (теперь одна для всех)
+
+def _with_proof_video_kb(base_kb: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    # аккуратно добавим новую строку с кнопкой
+    rows = []
+    if base_kb and getattr(base_kb, "inline_keyboard", None):
+        rows = [row[:] for row in base_kb.inline_keyboard]
+
+    rows.append([
+        InlineKeyboardButton(text="🎥 Пример получения чека", callback_data="withdraw_proof_video")
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _back_kb(cb: str = "withdraw_cancel"):
@@ -95,6 +107,14 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
             "<b>• Создать 7 заданий</b>\n\n"
             "👛 <b>Вывод средств происходит автоматически. После создания заявки вы получите чек в</b> @CryptoBot."
         )
+
+        base_kb = main_menu_kb(
+            is_admin=(message_or_call.from_user.id == cfg.ADMIN_ID),
+            miniapp_url=cfg.WEBAPP_URL
+        )
+
+        kb = _with_proof_video_kb(base_kb)
+
         if isinstance(message_or_call, CallbackQuery):
             await premium.answer_html(
                 message_or_call.message,
@@ -135,6 +155,15 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
         await message_or_call.answer()
     else:
         await premium.answer_html(message_or_call, text, reply_markup=_back_kb("withdraw_cancel"))
+
+@router.callback_query(F.data == "withdraw_proof_video")
+async def withdraw_proof_video(call: CallbackQuery):
+    video = FSInputFile("assets/withdraw_proof.mp4")
+    await call.message.answer_video(
+        video=video,
+        caption="✅ Пример: так приходит чек от @CryptoBot после автоматической выплаты."
+    )
+    await call.answer()
 
 
 @router.message(F.text == "💸 Вывод")
