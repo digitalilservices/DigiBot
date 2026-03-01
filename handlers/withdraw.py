@@ -144,8 +144,8 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
 @router.callback_query(F.data == "withdraw_proof_video")
 async def withdraw_proof_video(call: CallbackQuery):
     video = FSInputFile("assets/withdraw_proof.mp4")
-    await call.message.answer_video(
-        video=video,
+    await call.message.answer_document(
+        document=video,
         caption="✅ Пример: так приходит чек от @CryptoBot после автоматической выплаты."
     )
     await call.answer()
