@@ -114,6 +114,7 @@ def _mining_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="⚡ Бусты", callback_data="mining_boosts")],
         [InlineKeyboardButton(text="🛡 Щит", callback_data="mining_shield")],
         [InlineKeyboardButton(text="⚔️ Атаковать", callback_data="mining_attack_open:0")],
+        [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],  # 👈 добавили
         [InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu")],
     ])
 
