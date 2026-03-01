@@ -243,6 +243,25 @@ class Database:
             UNIQUE(user_id, bot_id, idempotency_key)
         )
         """)
+
+        # ---------------- APP STATS (new) ----------------
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS app_stats (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            turnover_usdt REAL DEFAULT 0,
+            invoices_created INTEGER DEFAULT 0,
+            payments_count INTEGER DEFAULT 0,
+            users_count INTEGER DEFAULT 0,
+            conversion_pct INTEGER DEFAULT 0
+        )
+        """)
+
+        # одна строка с id=1 всегда должна существовать
+        cur.execute("""
+        INSERT OR IGNORE INTO app_stats
+        (id, turnover_usdt, invoices_created, payments_count, users_count, conversion_pct)
+        VALUES (1, 0, 0, 0, 0, 0)
+        """)
         # --- migrate: saved forwarded posts for views tasks ---
         try:
             self.market_tasks_migrate_posts()
@@ -2005,3 +2024,59 @@ class Database:
             return False
         finally:
             conn.close()
+
+    # ==============================
+    # APP STATS (for admin + users)
+    # ==============================
+    def get_app_stats(self) -> dict:
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM app_stats WHERE id=1")
+        r = cur.fetchone()
+        conn.close()
+        if not r:
+            return {
+                "turnover_usdt": 0.0,
+                "invoices_created": 0,
+                "payments_count": 0,
+                "users_count": 0,
+                "conversion_pct": 0,
+            }
+        return {
+            "turnover_usdt": float(r["turnover_usdt"] or 0),
+            "invoices_created": int(r["invoices_created"] or 0),
+            "payments_count": int(r["payments_count"] or 0),
+            "users_count": int(r["users_count"] or 0),
+            "conversion_pct": int(r["conversion_pct"] or 0),
+        }
+
+    def set_app_stats(
+        self,
+        turnover_usdt: float | None = None,
+        invoices_created: int | None = None,
+        payments_count: int | None = None,
+        users_count: int | None = None,
+        conversion_pct: int | None = None,
+    ) -> None:
+        # берем текущие значения и обновляем только те, что переданы
+        cur_stats = self.get_app_stats()
+
+        turnover_usdt = cur_stats["turnover_usdt"] if turnover_usdt is None else float(turnover_usdt)
+        invoices_created = cur_stats["invoices_created"] if invoices_created is None else int(invoices_created)
+        payments_count = cur_stats["payments_count"] if payments_count is None else int(payments_count)
+        users_count = cur_stats["users_count"] if users_count is None else int(users_count)
+        conversion_pct = cur_stats["conversion_pct"] if conversion_pct is None else int(conversion_pct)
+
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE app_stats
+            SET turnover_usdt=?,
+                invoices_created=?,
+                payments_count=?,
+                users_count=?,
+                conversion_pct=?
+            WHERE id=1
+        """, (turnover_usdt, invoices_created, payments_count, users_count, conversion_pct))
+        conn.commit()
+        conn.close()

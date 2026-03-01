@@ -3,6 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
+from handlers.statistics import router as statistics_router
 from handlers.mining import router as mining_router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -311,7 +312,7 @@ async def main():
     # ===== PREMIUM EMOJI (auto-load from your packs) =====
     premium = await PremiumEmoji.from_sticker_sets(
         bot,
-        ["sohccw_by_EmojiTitleBot", "sog5ed_by_EmojiTitleBot", "sy1gu7_by_EmojiTitleBot", "sepu9i_by_EmojiTitleBot", "sfxbpi_by_EmojiTitleBot", "s0rve8_by_EmojiTitleBot", "sl63qq_by_EmojiTitleBot", "seud88_by_EmojiTitleBot"]
+        ["sohccw_by_EmojiTitleBot", "sog5ed_by_EmojiTitleBot", "sy1gu7_by_EmojiTitleBot", "sepu9i_by_EmojiTitleBot", "sfxbpi_by_EmojiTitleBot", "s0rve8_by_EmojiTitleBot", "sl63qq_by_EmojiTitleBot", "seud88_by_EmojiTitleBot", "s77hcf_by_EmojiTitleBot"]
     )
     dp["premium"] = premium
 
@@ -327,6 +328,7 @@ async def main():
     dp.include_router(ads_router)
     dp.include_router(referral_router)
     dp.include_router(about_router)
+    dp.include_router(statistics_router)
     dp.include_router(withdraw_router)
     dp.include_router(admin_router)
     dp.include_router(send_digi_router)

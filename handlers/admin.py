@@ -64,6 +64,14 @@ class AdminGiveUsdtStates(StatesGroup):
     waiting_amount = State()
 
 
+class AdminAppStatsStates(StatesGroup):
+    waiting_turnover = State()
+    waiting_invoices = State()
+    waiting_payments = State()
+    waiting_users = State()
+    waiting_conversion = State()
+
+
 # ==============================
 # helpers
 # ==============================
@@ -318,6 +326,162 @@ async def _admin_show_withdraw_page(call: CallbackQuery, db: Database, page: int
     except Exception:
         await _answer_html(call.message, premium, text, reply_markup=_withdraw_actions_kb(int(r["id"])))
 
+# ==============================
+# APP STATS (editable)
+# ==============================
+def _appstats_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✏️ Оборот ($)", callback_data="appstats_edit:turnover")],
+        [InlineKeyboardButton(text="✏️ Созданные счета", callback_data="appstats_edit:invoices")],
+        [InlineKeyboardButton(text="✏️ Кол-во оплат", callback_data="appstats_edit:payments")],
+        [InlineKeyboardButton(text="✏️ Пользователи", callback_data="appstats_edit:users")],
+        [InlineKeyboardButton(text="✏️ Конверсия (%)", callback_data="appstats_edit:conversion")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back")],
+    ])
+
+
+def _render_appstats(st: dict) -> str:
+    return (
+        "📈 <b>Статистика приложения DigiBot</b>\n\n"
+        f"💵 Оборот: <b>${st['turnover_usdt']:.2f}</b>\n"
+        f"🧾 Созданных счетов: <b>{st['invoices_created']}</b>\n"
+        f"✅ Оплат: <b>{st['payments_count']}</b>\n"
+        f"👥 Пользователей: <b>{st['users_count']}</b>\n"
+        f"📈 Конверсия: <b>{st['conversion_pct']}%</b>\n\n"
+        "Выбери что изменить 👇"
+    )
+
+
+@router.callback_query(F.data == "admin_appstats")
+async def admin_appstats(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _admin_guard(call, cfg):
+        await call.answer("⛔️ Нет доступа", show_alert=True)
+        return
+
+    await state.clear()
+    st = db.get_app_stats()
+    text = _render_appstats(st)
+    try:
+        text = premium.format(text)
+    except Exception:
+        pass
+
+    await call.message.edit_text(text, reply_markup=_appstats_kb(), parse_mode="HTML")
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("appstats_edit:"))
+async def admin_appstats_edit(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _admin_guard(call, cfg):
+        await call.answer("⛔️ Нет доступа", show_alert=True)
+        return
+
+    field = call.data.split(":", 1)[1]
+
+    if field == "turnover":
+        await state.set_state(AdminAppStatsStates.waiting_turnover)
+        msg = "Введи новый <b>оборот</b> в долларах (пример: <code>376.95</code>):"
+    elif field == "invoices":
+        await state.set_state(AdminAppStatsStates.waiting_invoices)
+        msg = "Введи новое <b>кол-во созданных счетов</b> (пример: <code>93</code>):"
+    elif field == "payments":
+        await state.set_state(AdminAppStatsStates.waiting_payments)
+        msg = "Введи новое <b>кол-во оплат</b> (пример: <code>53</code>):"
+    elif field == "users":
+        await state.set_state(AdminAppStatsStates.waiting_users)
+        msg = "Введи новое <b>кол-во пользователей</b> (пример: <code>283</code>):"
+    elif field == "conversion":
+        await state.set_state(AdminAppStatsStates.waiting_conversion)
+        msg = "Введи новую <b>конверсию</b> в процентах (пример: <code>56</code>):"
+    else:
+        await call.answer("Неизвестное поле", show_alert=True)
+        return
+
+    try:
+        msg = premium.format(msg)
+    except Exception:
+        pass
+
+    await call.message.edit_text(msg, parse_mode="HTML")
+    await call.answer()
+
+
+def _parse_int(txt: str) -> int | None:
+    try:
+        s = (txt or "").strip().replace(" ", "")
+        return int(s)
+    except Exception:
+        return None
+
+
+@router.message(AdminAppStatsStates.waiting_turnover)
+async def appstats_set_turnover(message: Message, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+    val = _parse_usdt_amount(message.text)  # уже есть в admin.py
+    if val is None or val < 0:
+        await message.answer("❌ Введи число, пример: 376.95")
+        return
+    db.set_app_stats(turnover_usdt=val)
+    await state.clear()
+    st = db.get_app_stats()
+    await message.answer(_render_appstats(st), reply_markup=_appstats_kb(), parse_mode="HTML")
+
+
+@router.message(AdminAppStatsStates.waiting_invoices)
+async def appstats_set_invoices(message: Message, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+    val = _parse_int(message.text)
+    if val is None or val < 0:
+        await message.answer("❌ Введи целое число, пример: 93")
+        return
+    db.set_app_stats(invoices_created=val)
+    await state.clear()
+    st = db.get_app_stats()
+    await message.answer(_render_appstats(st), reply_markup=_appstats_kb(), parse_mode="HTML")
+
+
+@router.message(AdminAppStatsStates.waiting_payments)
+async def appstats_set_payments(message: Message, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+    val = _parse_int(message.text)
+    if val is None or val < 0:
+        await message.answer("❌ Введи целое число, пример: 53")
+        return
+    db.set_app_stats(payments_count=val)
+    await state.clear()
+    st = db.get_app_stats()
+    await message.answer(_render_appstats(st), reply_markup=_appstats_kb(), parse_mode="HTML")
+
+
+@router.message(AdminAppStatsStates.waiting_users)
+async def appstats_set_users(message: Message, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+    val = _parse_int(message.text)
+    if val is None or val < 0:
+        await message.answer("❌ Введи целое число, пример: 283")
+        return
+    db.set_app_stats(users_count=val)
+    await state.clear()
+    st = db.get_app_stats()
+    await message.answer(_render_appstats(st), reply_markup=_appstats_kb(), parse_mode="HTML")
+
+
+@router.message(AdminAppStatsStates.waiting_conversion)
+async def appstats_set_conversion(message: Message, db: Database, cfg: Config, premium: PremiumEmoji, state: FSMContext):
+    if not _is_admin(message.from_user.id, cfg):
+        return
+    val = _parse_int(message.text)
+    if val is None or val < 0 or val > 100:
+        await message.answer("❌ Введи число 0..100, пример: 56")
+        return
+    db.set_app_stats(conversion_pct=val)
+    await state.clear()
+    st = db.get_app_stats()
+    await message.answer(_render_appstats(st), reply_markup=_appstats_kb(), parse_mode="HTML")
 
 # ==============================
 # PUBLIC: Администратор
