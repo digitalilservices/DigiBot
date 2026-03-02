@@ -18,9 +18,9 @@ ACTIVE_TOPUP_USDT = 10.0
 ACTIVE_NEED_DONE = 7
 ACTIVE_NEED_CREATED = 7
 
-# ✅ Лидер: по счётчику "всего заработал USDT" (total_earned_usdt)
-LEADER_NEED_EARNED_USDT = 100.0
-LEADER_BONUS_USDT = 10.0  # если не нужен бонус — поставь 0.0
+# ✅ Новый Лидер: баланс >= 100 USDT + обязательно статус Активный
+LEADER_NEED_BALANCE_USDT = 100.0
+LEADER_BONUS_USDT = 10.0
 
 
 # =========================
@@ -56,28 +56,21 @@ def _leader_kb():
 # =========================
 def _leader_progress_raw(db: Database, tg_id: int) -> float:
     """
-    Возвращает total_earned_usdt (сколько всего заработал USDT).
+    Прогресс Лидера = текущий баланс USDT (usdt_balance).
     """
     conn = db._connect()
     cur = conn.cursor()
-    try:
-        # на всякий случай: если колонки ещё нет — прогресс 0
-        cur.execute("PRAGMA table_info(users)")
-        cols = {r["name"] for r in cur.fetchall()}
-        if "total_earned_usdt" not in cols:
-            return 0.0
-
-        cur.execute("SELECT COALESCE(total_earned_usdt, 0) AS earned FROM users WHERE tg_id=?", (int(tg_id),))
-        row = cur.fetchone()
-        return float(row["earned"] or 0.0) if row else 0.0
-    finally:
-        conn.close()
+    cur.execute("SELECT usdt_balance FROM users WHERE tg_id=?", (int(tg_id),))
+    row = cur.fetchone()
+    conn.close()
+    return float(row["usdt_balance"] or 0.0) if row else 0.0
 
 
 def _try_grant_leader_raw(db: Database, tg_id: int) -> bool:
     """
-    Выдаёт статус leader если total_earned_usdt >= 100.
-    Статус остаётся навсегда (не снимается при выводе).
+    Выдаёт статус leader если:
+    - текущий статус == active
+    - usdt_balance >= 100
     Бонус +10 USDT выдаётся один раз (leader_bonus_given).
     """
     conn = db._connect()
@@ -85,17 +78,14 @@ def _try_grant_leader_raw(db: Database, tg_id: int) -> bool:
     try:
         cur.execute("BEGIN IMMEDIATE")
 
-        # миграции: leader_bonus_given + total_earned_usdt
+        # миграция: leader_bonus_given (если нет колонки)
         cur.execute("PRAGMA table_info(users)")
         cols = {r["name"] for r in cur.fetchall()}
         if "leader_bonus_given" not in cols:
             cur.execute("ALTER TABLE users ADD COLUMN leader_bonus_given INTEGER DEFAULT 0")
-        if "total_earned_usdt" not in cols:
-            cur.execute("ALTER TABLE users ADD COLUMN total_earned_usdt REAL DEFAULT 0")
 
         cur.execute(
-            "SELECT status, leader_bonus_given, COALESCE(total_earned_usdt, 0) AS earned "
-            "FROM users WHERE tg_id=?",
+            "SELECT status, usdt_balance, leader_bonus_given FROM users WHERE tg_id=?",
             (int(tg_id),),
         )
         u = cur.fetchone()
@@ -104,30 +94,37 @@ def _try_grant_leader_raw(db: Database, tg_id: int) -> bool:
             return False
 
         status = str(u["status"] or "newbie")
+        usdt_balance = float(u["usdt_balance"] or 0.0)
+        bonus_given = int(u["leader_bonus_given"] or 0)
+
+        # ✅ если уже лидер — ничего не делаем
         if status == "leader":
             conn.rollback()
             return False
 
-        earned = float(u["earned"] or 0.0)
-        if earned + 1e-9 < float(LEADER_NEED_EARNED_USDT):
+        # ✅ ОБЯЗАТЕЛЬНО должен быть активный
+        if status != "active":
             conn.rollback()
             return False
 
-        # ✅ выдаём лидера
+        # ✅ условие по балансу
+        if usdt_balance + 1e-9 < float(LEADER_NEED_BALANCE_USDT):
+            conn.rollback()
+            return False
+
+        # выдаём статус leader
         cur.execute("UPDATE users SET status='leader' WHERE tg_id=?", (int(tg_id),))
 
-        # ✅ бонус один раз
-        bonus_given = int(u["leader_bonus_given"] or 0)
+        # бонус 1 раз
         if float(LEADER_BONUS_USDT) > 0 and bonus_given == 0:
             cur.execute(
                 """
                 UPDATE users
                 SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
-                    total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?,
                     leader_bonus_given = 1
                 WHERE tg_id = ?
                 """,
-                (float(LEADER_BONUS_USDT), float(LEADER_BONUS_USDT), int(tg_id)),
+                (float(LEADER_BONUS_USDT), int(tg_id)),
             )
 
         conn.commit()
@@ -176,7 +173,6 @@ async def activation_active_info(call: CallbackQuery, db: Database, cfg: Config,
 
     status_title = "💜 Лидер" if status == "leader" else ("💚 Активный" if status == "active" else "💙 Новичок")
 
-    # если уже active/leader — кнопка активации не нужна, но оставим "Назад"
     if status in ("active", "leader"):
         kb = InlineKeyboardBuilder()
         kb.button(text="⬅️ Назад", callback_data="activation_menu")
@@ -219,7 +215,6 @@ async def activation_active_apply(call: CallbackQuery, db: Database, cfg: Config
         await call.answer("✅ Статус уже активен", show_alert=True)
         return
 
-    # проверки по прогрессу
     done = int((u["tasks_completed_total"] if "tasks_completed_total" in u.keys() else 0) or 0)
     created = int((u["tasks_created_total"] if "tasks_created_total" in u.keys() else 0) or 0)
 
@@ -230,7 +225,6 @@ async def activation_active_apply(call: CallbackQuery, db: Database, cfg: Config
         await call.answer("⛔ Нужно создать 7 заданий", show_alert=True)
         return
 
-    # ✅ списываем 10 USDT и ставим active (атомарно)
     conn = db._connect()
     cur = conn.cursor()
     try:
@@ -300,17 +294,18 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
         )
         u = db.get_user(tg_id) or {}
 
-    earned = _leader_progress_raw(db, tg_id)
-    progress = min(earned, float(LEADER_NEED_EARNED_USDT))
+    balance = _leader_progress_raw(db, tg_id)
+    progress = min(balance, float(LEADER_NEED_BALANCE_USDT))
 
     text = (
         "💜 <b>Статус «Лидер»</b>\n\n"
         "ℹ️ <b>Условия:</b>\n"
-        f"<b>• Заработать {LEADER_NEED_EARNED_USDT:.0f} USDT</b>\n\n"
+        "<b>• Сначала получите статус «Активный»</b>\n"
+        f"<b>• На балансе должно быть {LEADER_NEED_BALANCE_USDT:.0f} USDT</b>\n\n"
         "🎁 <b>Награды:</b>\n"
         f"<b> +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
         "🔄<b> Вы сможете конвертировать монеты DIGI/USDT и зарабатывать 💵</b>\n\n"
-        f"<b>Ваш прогресс: {progress:.2f}/{LEADER_NEED_EARNED_USDT:.0f} USDT</b>"
+        f"<b>Ваш прогресс: {progress:.2f}/{LEADER_NEED_BALANCE_USDT:.0f} USDT</b>"
     )
 
     await premium.answer_html(call.message, text, reply_markup=_leader_kb())
@@ -322,22 +317,28 @@ async def activation_leader_check(call: CallbackQuery, db: Database, cfg: Config
     tg_id = call.from_user.id
 
     granted = _try_grant_leader_raw(db, tg_id)
-    earned = _leader_progress_raw(db, tg_id)
-    progress = min(earned, float(LEADER_NEED_EARNED_USDT))
+    balance = _leader_progress_raw(db, tg_id)
+    progress = min(balance, float(LEADER_NEED_BALANCE_USDT))
 
     if granted:
-        bonus_line = ""
-        if float(LEADER_BONUS_USDT) > 0:
-            bonus_line = f"✅ Начислено: <b>+{LEADER_BONUS_USDT:.0f} USDT</b>\n"
-
         await premium.answer_html(
             call.message,
             "🎉 <b>Поздравляем!</b>\n\n"
             "Вы получили статус <b>Лидер</b>.\n"
-            f"{bonus_line}"
-            "✅ Теперь доступна конвертация <b>DIGI → USDT</b>.",
+            f"✅ Начислено: <b>+{LEADER_BONUS_USDT:.0f} USDT</b>\n"
+            "✅ Лидер имеет все функции <b>Активного</b> + конвертацию <b>DIGI → USDT</b>.",
             reply_markup=_leader_kb(),
         )
         await call.answer("✅ Статус Лидер выдан!", show_alert=True)
     else:
-        await call.answer(f"Пока прогресс {progress:.2f}/{LEADER_NEED_EARNED_USDT:.0f} USDT", show_alert=True)
+        # точная причина для пользователя
+        u = db.get_user(tg_id) or {}
+        status = str((u["status"] if hasattr(u, "keys") and "status" in u.keys() else "newbie") or "newbie")
+
+        if status != "active":
+            await call.answer("⛔ Сначала нужен статус «Активный»", show_alert=True)
+        else:
+            await call.answer(
+                f"Пока прогресс {progress:.2f}/{LEADER_NEED_BALANCE_USDT:.0f} USDT",
+                show_alert=True,
+            )
