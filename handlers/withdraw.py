@@ -8,6 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from datetime import datetime
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import Config
 from database import Database
@@ -226,23 +227,29 @@ async def withdraw_amount(message: Message, state: FSMContext, db: Database, cfg
 
 @router.callback_query(F.data == "withdraw_confirm")
 async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
-    tg_id = call.from_user.id
+    tg_id = int(call.from_user.id)
 
+    # 1) доступ только для Active
     if not _is_active(db, tg_id):
         await state.clear()
         await premium.answer_html(
             call.message,
             "⛔ Вывод доступен только со статусом <b>Активный</b>.",
             reply_markup=main_menu_kb(
-                is_admin=(call.from_user.id == cfg.ADMIN_ID),
+                is_admin=(tg_id == int(cfg.ADMIN_ID)),
                 miniapp_url=cfg.WEBAPP_URL
             )
         )
         await call.answer()
         return
 
+    # 2) читаем сумму из FSM
     data = await state.get_data()
-    amount = float(data.get("amount", 0.0))
+    try:
+        amount = float(data.get("amount", 0.0))
+    except (TypeError, ValueError):
+        await call.answer("Ошибка данных заявки", show_alert=True)
+        return
 
     if amount <= 0:
         await call.answer("Ошибка данных заявки", show_alert=True)
@@ -256,41 +263,78 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
 
     conn = db._connect()
     cur = conn.cursor()
+
+    req_id: int | None = None
+
     try:
         cur.execute("BEGIN IMMEDIATE")
 
-        # ✅ баланс только usdt_balance
-        cur.execute("SELECT usdt_balance FROM users WHERE tg_id=?", (int(tg_id),))
+        # 3) проверяем баланс
+        cur.execute("SELECT usdt_balance FROM users WHERE tg_id=?", (tg_id,))
         row = cur.fetchone()
-        bal = float(row["usdt_balance"] or 0.0) if row else 0.0
-        if bal + 1e-9 < float(amount):
+        if not row:
+            conn.rollback()
+            await call.answer("Пользователь не найден", show_alert=True)
+            return
+
+        bal = float(row["usdt_balance"] or 0.0)
+        if bal + 1e-9 < amount:
             conn.rollback()
             await call.answer("Недостаточно USDT баланса", show_alert=True)
             return
 
-        cur.execute("""
-            UPDATE users
-            SET usdt_balance = usdt_balance - ?
-            WHERE tg_id=?
-        """, (float(amount), int(tg_id)))
+        # 4) списываем баланс
+        cur.execute(
+            "UPDATE users SET usdt_balance = usdt_balance - ? WHERE tg_id=?",
+            (amount, tg_id),
+        )
 
+        # 5) создаём заявку
         cur.execute("""
             INSERT INTO withdraw_requests (user_id, source, amount_usdt, address, status, created_at)
             VALUES (?, 'usdt', ?, '', 'pending', datetime('now'))
-        """, (int(tg_id), float(amount)))
+        """, (tg_id, amount))
 
         req_id = int(cur.lastrowid)
+
+        # 6) фиксируем транзакцию
         conn.commit()
 
     except Exception:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         await call.answer("Ошибка создания заявки", show_alert=True)
         return
     finally:
         conn.close()
 
+    # 7) FSM чистим уже после успешного commit
     await state.clear()
 
+    # 8) уведомление админу (вне транзакции, чтобы не мешать пользователю)
+    try:
+        kb_admin = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🧾 Открыть заявки на вывод", callback_data="admin_withdrawals")
+        ]])
+
+        await call.bot.send_message(
+            chat_id=int(cfg.ADMIN_ID),
+            text=(
+                "💸 <b>Новая заявка на вывод</b>\n\n"
+                f"🆔 ID: <b>{req_id}</b>\n"
+                f"👤 user_id: <code>{tg_id}</code>\n"
+                f"💵 Сумма: <b>{amount:.2f} USDT</b>\n"
+                f"🕒 Время: <b>{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</b>"
+            ),
+            reply_markup=kb_admin,
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+    # 9) ответ пользователю
     await premium.answer_html(
         call.message,
         "✅ <b>Заявка на вывод создана</b>\n\n"
@@ -300,4 +344,4 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
         "⏳ <b>Заявка обрабатывается автоматически.</b>",
         reply_markup=_menu_kb()
     )
-    await call.answer("✅ Создано", show_alert=True)
+    await call.answer("✅ Создано")
