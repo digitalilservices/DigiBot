@@ -76,11 +76,10 @@ def about_kb(cfg: Config, page: int):
 
     # --- Стрелки ---
     if page == 1:
-        kb.button(text="1/2", callback_data="noop")
         kb.button(text="▶️", callback_data="about_page:2")
     else:
         kb.button(text="◀️", callback_data="about_page:1")
-        kb.button(text="2/2", callback_data="noop")
+
 
     kb.adjust(2)
 
