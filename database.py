@@ -163,6 +163,7 @@ class Database:
         self._ensure_col(cur, "users", "ref_balance_usdt", "ref_balance_usdt REAL DEFAULT 0")
         self._ensure_col(cur, "users", "tasks_completed_total", "tasks_completed_total INTEGER DEFAULT 0")
         self._ensure_col(cur, "users", "tasks_created_total", "tasks_created_total INTEGER DEFAULT 0")
+        self._ensure_col(cur, "users", "total_earned_usdt", "total_earned_usdt REAL DEFAULT 0")
         self._ensure_col(cur, "users", "usdt_balance", "usdt_balance REAL DEFAULT 0")
         self._ensure_col(cur, "users", "win_balance_usdt", "win_balance_usdt REAL DEFAULT 0")
         self._ensure_col(cur, "users", "balances_merged", "balances_merged INTEGER DEFAULT 0")
@@ -191,6 +192,7 @@ class Database:
         self._ensure_col(cur, "users", "miner_hp", "miner_hp INTEGER DEFAULT 100")
         self._ensure_col(cur, "users", "miner_stored", "miner_stored REAL DEFAULT 0")
         self._ensure_col(cur, "users", "miner_last_ts", "miner_last_ts INTEGER DEFAULT 0")
+
 
         self._ensure_col(cur, "users", "miner_boost_until", "miner_boost_until INTEGER DEFAULT 0")
         self._ensure_col(cur, "users", "miner_shield_until", "miner_shield_until INTEGER DEFAULT 0")
@@ -966,9 +968,10 @@ class Database:
         cur = conn.cursor()
         cur.execute("""
             UPDATE users
-            SET usdt_balance = usdt_balance + ?
+            SET usdt_balance = usdt_balance + ?,
+                total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?
             WHERE tg_id = ?
-        """, (float(amount_usdt), int(tg_id)))
+        """, (float(amount_usdt), float(amount_usdt), int(tg_id)))
         conn.commit()
         conn.close()
 
@@ -1011,9 +1014,10 @@ class Database:
             # списываем ставку + начисляем выигрыш в win_balance_usdt
             cur.execute("""
                  UPDATE users
-                 SET usdt_balance = usdt_balance - ? + ?
+                 SET usdt_balance = usdt_balance - ? + ?,
+                     total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?
                  WHERE tg_id = ?
-             """, (bet, win, int(tg_id)))
+             """, (bet, win, max(0.0, win), int(tg_id)))
 
             cur.execute("SELECT usdt_balance FROM users WHERE tg_id=?", (int(tg_id),))
             new_bal = float(cur.fetchone()["usdt_balance"] or 0.0)
@@ -1214,9 +1218,10 @@ class Database:
                 cur.execute("""
                     UPDATE users
                     SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                        total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?,
                         referrals_count = COALESCE(referrals_count, 0) + 1
                     WHERE tg_id = ?
-                """, (float(level1_reward_usdt), int(direct_referrer)))
+                """, (float(level1_reward_usdt), float(level1_reward_usdt), int(direct_referrer)))
 
                 cur.execute("""
                     INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
@@ -1233,9 +1238,10 @@ class Database:
                 if cur.fetchone() is None:
                     cur.execute("""
                         UPDATE users
-                        SET usdt_balance = COALESCE(usdt_balance, 0) + ?
+                        SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                            total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?
                         WHERE tg_id = ?
-                    """, (float(level2_reward_usdt), int(second_referrer)))
+                    """, (float(level2_reward_usdt), float(level2_reward_usdt), int(second_referrer)))
 
                     cur.execute("""
                         INSERT INTO referral_rewards (referred_id, level, amount_usdt, paid_to, created_at)
@@ -1967,59 +1973,44 @@ class Database:
         conn.close()
         return int(row["cnt"] or 0) if row else 0
 
-    def try_grant_leader(self, tg_id: int, need_refs: int = 10, min_topup_usdt: float = 10.0,
-                         bonus_usdt: float = 10.0) -> bool:
-        """
-        Даёт статус leader если выполнено:
-          - invited_by count (total_topup_usdt >= 10) >= 10
-        При выдаче: начисляет +10 USDT ОДИН РАЗ (leader_bonus_given)
-        """
+    def try_grant_leader_by_earned(self, tg_id: int, need_earned_usdt: float = 100.0, bonus_usdt: float = 10.0) -> bool:
         conn = self._connect()
         cur = conn.cursor()
         try:
             cur.execute("BEGIN IMMEDIATE")
 
-            cur.execute("SELECT status, leader_bonus_given FROM users WHERE tg_id=?", (int(tg_id),))
+            cur.execute("SELECT status, leader_bonus_given, total_earned_usdt FROM users WHERE tg_id=?", (int(tg_id),))
             u = cur.fetchone()
             if not u:
                 conn.rollback()
                 return False
 
             status = str(u["status"] or "newbie")
-            bonus_given = int(u["leader_bonus_given"] or 0)
-
-            # если уже лидер — ничего
             if status == "leader":
                 conn.rollback()
                 return False
 
-            cur.execute("""
-                SELECT COUNT(*) AS cnt
-                FROM users
-                WHERE invited_by = ?
-                  AND COALESCE(total_topup_usdt, 0) >= ?
-            """, (int(tg_id), float(min_topup_usdt)))
-            cnt = int((cur.fetchone() or {})["cnt"] or 0)
-
-            if cnt < int(need_refs):
+            earned = float(u["total_earned_usdt"] or 0.0)
+            if earned + 1e-9 < float(need_earned_usdt):
                 conn.rollback()
                 return False
 
-            # выдаём статус leader
+            # выдаём статус навсегда
             cur.execute("UPDATE users SET status='leader' WHERE tg_id=?", (int(tg_id),))
 
-            # бонус 10 USDT один раз
-            if bonus_given == 0:
+            # бонус (если хочешь оставить как на скрине)
+            bonus_given = int(u["leader_bonus_given"] or 0)
+            if bonus_usdt > 0 and bonus_given == 0:
                 cur.execute("""
                     UPDATE users
                     SET usdt_balance = COALESCE(usdt_balance, 0) + ?,
+                        total_earned_usdt = COALESCE(total_earned_usdt, 0) + ?,
                         leader_bonus_given = 1
                     WHERE tg_id = ?
-                """, (float(bonus_usdt), int(tg_id)))
+                """, (float(bonus_usdt), float(bonus_usdt), int(tg_id)))
 
             conn.commit()
             return True
-
         except Exception:
             conn.rollback()
             return False
