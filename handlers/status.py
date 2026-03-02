@@ -300,12 +300,12 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
     text = (
         "💜 <b>Статус «Лидер»</b>\n\n"
         "ℹ️ <b>Условия:</b>\n"
-        "<b>• Сначала получите статус «Активный»</b>\n"
-        f"<b>• На балансе должно быть {LEADER_NEED_BALANCE_USDT:.0f} USDT</b>\n\n"
+        "<b>• Получите статус «Активный»</b>\n"
+        f"<b>• Заработайте {LEADER_NEED_BALANCE_USDT:.0f} USDT</b>\n\n"
         "🎁 <b>Награды:</b>\n"
         f"<b> +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
-        "🔄<b> Вы сможете конвертировать монеты DIGI/USDT и зарабатывать 💵</b>\n\n"
-        f"<b>Ваш прогресс: {progress:.2f}/{LEADER_NEED_BALANCE_USDT:.0f} USDT</b>"
+        "🔄<b> Вы сможете конвертировать монеты DIGI/USDT и зарабатывать</b>\n\n"
+        f"📊<b> Ваш прогресс: {progress:.2f}/{LEADER_NEED_BALANCE_USDT:.0f} USDT</b>"
     )
 
     await premium.answer_html(call.message, text, reply_markup=_leader_kb())
