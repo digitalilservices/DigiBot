@@ -311,11 +311,23 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
     await premium.answer_html(call.message, text, reply_markup=_leader_kb())
     await call.answer()
 
-
 @router.callback_query(F.data == "activation_leader_check")
 async def activation_leader_check(call: CallbackQuery, db: Database, cfg: Config, premium: PremiumEmoji):
     tg_id = call.from_user.id
 
+    u = db.get_user(tg_id)
+    if not u:
+        await call.answer("❌ Профиль не найден", show_alert=True)
+        return
+
+    status = str((u["status"] if "status" in u.keys() else "newbie") or "newbie")
+
+    # ✅ если уже лидер — не ругаемся, просто сообщаем
+    if status == "leader":
+        await call.answer("✅ У вас уже активирован статус «Лидер»", show_alert=True)
+        return
+
+    # дальше стандартная логика
     granted = _try_grant_leader_raw(db, tg_id)
     balance = _leader_progress_raw(db, tg_id)
     progress = min(balance, float(LEADER_NEED_BALANCE_USDT))
@@ -332,9 +344,6 @@ async def activation_leader_check(call: CallbackQuery, db: Database, cfg: Config
         await call.answer("✅ Статус Лидер выдан!", show_alert=True)
     else:
         # точная причина для пользователя
-        u = db.get_user(tg_id) or {}
-        status = str((u["status"] if hasattr(u, "keys") and "status" in u.keys() else "newbie") or "newbie")
-
         if status != "active":
             await call.answer("⛔ Сначала нужен статус «Активный»", show_alert=True)
         else:
