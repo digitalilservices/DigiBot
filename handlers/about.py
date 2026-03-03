@@ -104,7 +104,7 @@ def about_kb(cfg: Config, page: int):
 
     # --- Основные кнопки ---
     if cfg.WEBSITE_URL:
-        kb.button(text="🌐 Сайт", url=cfg.WEBSITE_URL)
+        kb.button(text="📢 Канал", url=cfg.WEBSITE_URL)
         kb.button(text="🧰 Сервис Digi", callback_data="go_service")
 
     kb.button(text="🏠 В меню", callback_data="go_menu")
