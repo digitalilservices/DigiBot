@@ -23,7 +23,7 @@ MIN_UPGRADE_DIGI = 100
 
 # доход: DIGI/час = power * (hp/100) * RATE_K
 # ✅ старт 1 DIGI/час при power=1 и HP=100
-RATE_K = 5.0
+RATE_K = 15.0
 
 # буст (x2) + бонус атак по пакетам
 BOOST_PACKS = [
