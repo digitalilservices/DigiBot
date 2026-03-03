@@ -63,21 +63,6 @@ async def referral(message: Message, cfg: Config, db: Database, premium: Premium
     except Exception:
         status = str(_rget(user, "status", "newbie") or "newbie")
 
-    # ✅ рефералка доступна для Active/Leader
-    if status not in ("active", "leader"):
-        text = (
-            "👥 <b>Реферальная система</b>\n\n"
-            "⛔️ Доступ закрыт. Ваш статус: <b>Новичок</b>\n\n"
-            "✅ Чтобы открыть рефералку и начать зарабатывать, получите статус <b>💚 Активный</b>:\n\n"
-            "<b>• Пополнить 10 USDT</b>\n"
-            "<b>• Выполнить 7 заданий</b>\n"
-            "<b>• Создать 7 заданий</b>\n\n"
-            "💵 Награда <b>4 USDT</b> за каждого реферала <b>+ 2 USDT</b>, если ваш реферал пригласит ещё одного пользователя.\n\n"
-            "📌 Реферал засчитывается, когда приглашённый пополнит <b>10 USDT</b>."
-
-        )
-        await premium.answer_html(message, text)
-        return
 
     # Active/Leader: показываем ссылку и статистику
     me = await message.bot.get_me()
@@ -90,7 +75,12 @@ async def referral(message: Message, cfg: Config, db: Database, premium: Premium
     except Exception:
         joined = 0
 
-    status_title = "💜 Лидер" if status == "leader" else "💚 Активный"
+    if status == "leader":
+        status_title = "💜 Лидер"
+    elif status == "active":
+        status_title = "💚 Активный"
+    else:
+        status_title = "💙 Новичок"
 
     text = (
         "👥 <b>Реферальная система</b>\n\n"
