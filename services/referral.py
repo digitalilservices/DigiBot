@@ -48,7 +48,7 @@ class ReferralService:
     def pretty_rules_text(self) -> str:
         return (
             "✅ <b>Условия начисления:</b>\n"
-            f"1) Реферал должен заработать <b>{self.cfg.REF_CONDITION_EARN_DIGI:,} DIGI</b>\n"
+            f"1) Реферал должен заработать <b>{self.cfg.REF_CONDITION_EARN_DIGI:,} DGR</b>\n"
             f"2) Реферал должен быть в боте <b>{self.cfg.REF_CONDITION_HOURS} часа</b>\n"
-            f"🎁 Награда: <b>{self.cfg.REF_REWARD_DIGI:,} DIGI</b>"
+            f"🎁 Награда: <b>{self.cfg.REF_REWARD_DIGI:,} DGR</b>"
         )

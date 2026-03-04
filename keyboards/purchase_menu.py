@@ -15,8 +15,8 @@ def purchase_root_inline() -> InlineKeyboardMarkup:
 def convert_menu_inline() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🪙 DIGI → 💵 USDT", callback_data="convert_digi_to_usdt")],
-            [InlineKeyboardButton(text="💵 USDT → 🪙 DIGI", callback_data="convert_usdt_to_digi")],
+            [InlineKeyboardButton(text="🪙 DGR → 💵 USDT", callback_data="convert_digi_to_usdt")],
+            [InlineKeyboardButton(text="💵 USDT → 🪙 DGR", callback_data="convert_usdt_to_digi")],
             [InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu")],
         ]
     )
@@ -47,7 +47,7 @@ def service_actions_inline(support_username: str, service_code: str) -> InlineKe
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="👨‍💻 Написать", url=f"https://t.me/{support_username[1:]}")],
-            [InlineKeyboardButton(text="💳 Оплатить DIGI", callback_data=f"svc_pay:{service_code}")],
+            [InlineKeyboardButton(text="💳 Оплатить DGR", callback_data=f"svc_pay:{service_code}")],
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="buy_services")],
         ]
     )

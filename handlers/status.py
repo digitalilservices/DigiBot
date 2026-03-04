@@ -304,7 +304,7 @@ async def activation_leader_info(call: CallbackQuery, db: Database, cfg: Config,
         f"<b>• Заработайте {LEADER_NEED_BALANCE_USDT:.0f} USDT</b>\n\n"
         "🎁 <b>Награды:</b>\n"
         f"<b> +{LEADER_BONUS_USDT:.0f} USDT на баланс</b>\n"
-        "🔄<b> Вы сможете конвертировать монеты DIGI/USDT и зарабатывать</b>\n\n"
+        "🔄<b> Вы сможете конвертировать монеты DGR/USDT и зарабатывать</b>\n\n"
         f"📊<b> Ваш прогресс: {progress:.2f}/{LEADER_NEED_BALANCE_USDT:.0f} USDT</b>"
     )
 
@@ -338,7 +338,7 @@ async def activation_leader_check(call: CallbackQuery, db: Database, cfg: Config
             "🎉 <b>Поздравляем!</b>\n\n"
             "Вы получили статус <b>Лидер</b>.\n"
             f"✅ Начислено: <b>+{LEADER_BONUS_USDT:.0f} USDT</b>\n"
-            "✅ Лидер имеет все функции <b>Активного</b> + конвертацию <b>DIGI → USDT</b>.",
+            "✅ Лидер имеет все функции <b>Активного</b> + конвертацию <b>DGR → USDT</b>.",
             reply_markup=_leader_kb(),
         )
         await call.answer("✅ Статус Лидер выдан!", show_alert=True)

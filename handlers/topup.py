@@ -36,7 +36,7 @@ class TopUpStates(StatesGroup):
 def _topup_choose_kb() -> InlineKeyboardBuilder:
     kb = InlineKeyboardBuilder()
     kb.button(text="💳 Пополнить USDT CryptoBot", callback_data="topup_usdt_start")
-    kb.button(text="🪙 Пополнить DIGI Stars ⭐", callback_data="topup_stars_menu")
+    kb.button(text="🪙 Пополнить DGR Stars ⭐", callback_data="topup_stars_menu")
     kb.button(text="🏠 В меню", callback_data="go_menu")
     kb.adjust(1)
     return kb
@@ -81,7 +81,7 @@ def _stars_kb(cfg: Config) -> InlineKeyboardBuilder:
         if stars < stars_min:
             continue
         digi = stars * digi_per_star
-        kb.button(text=f"{stars}⭐ = {digi:,} DIGI", callback_data=f"stars_buy:{stars}")
+        kb.button(text=f"{stars}⭐ = {digi:,} DGR", callback_data=f"stars_buy:{stars}")
 
     kb.button(text="⬅️ Назад", callback_data="topup_back_to_choose")
     kb.adjust(1)
@@ -152,7 +152,7 @@ async def topup_entry(message: Message, state: FSMContext, cfg: Config, premium:
         "💵 <b>Пополнение</b>\n\n"
         "Выберите способ 👇\n\n"
         f"💳 <b>USDT</b> через @CryptoBot\n\n"
-        f"🪙 <b>DIGI</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DIGI</b>"
+        f"🪙 <b>DGR</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DGR</b>"
     )
     await premium.answer_html(message, text, reply_markup=_topup_choose_kb().as_markup())
 
@@ -191,7 +191,7 @@ async def topup_amount_entered(message: Message, state: FSMContext, cfg: Config,
     text = (
         "✅ <b>Подтверждение</b>\n\n"
         f"💵 Сумма: <b>{amount_usdt:.2f} USDT</b>\n\n"
-        "💳 После оплаты зачислим на ваш <b>USDT-баланс</b> в DigiBot.\n\n"
+        "💳 После оплаты зачислим на ваш <b>USDT-баланс</b> в DigaroBot.\n\n"
         "Продолжить?"
     )
     await premium.answer_html(message, text, reply_markup=_topup_confirm_kb().as_markup())
@@ -234,7 +234,7 @@ async def topup_confirm(call: CallbackQuery, state: FSMContext, db: Database, cf
     inv = await api.create_invoice(
         amount=round(amount_usdt, 2),
         asset="USDT",
-        description="DigiBot • Пополнение баланса USDT",
+        description="DigaroBot • Пополнение баланса USDT",
     )
     invoice_id = str(inv["invoice_id"])
     pay_url = inv["pay_url"]
@@ -314,9 +314,9 @@ async def topup_stars_menu(call: CallbackQuery, state: FSMContext, cfg: Config, 
     min_digi = stars_min * digi_per_star
 
     text = (
-        "🪙 <b>Пополнение DIGI за Stars ⭐️</b>\n\n"
-        f"<b>Минимум: {stars_min}⭐️ = {min_digi:,} DIGI</b>\n"
-        f"<b>Курс: 1⭐️ = {digi_per_star} DIGI</b>\n\n"
+        "🪙 <b>Пополнение DGR за Stars ⭐️</b>\n\n"
+        f"<b>Минимум: {stars_min}⭐️ = {min_digi:,} DGR</b>\n"
+        f"<b>Курс: 1⭐️ = {digi_per_star} DGR</b>\n\n"
         '<b>В</b> <a href="https://t.me/Stars_buddy_bot?start=8112868218">'
         'Stars_buddy_bot</a> <b>вы сможете купить звёзды намного дешевле</b> ⭐️\n\n'
         "Выберите пакет 👇"
@@ -341,7 +341,7 @@ async def topup_back_to_choose(call: CallbackQuery, state: FSMContext, cfg: Conf
         "💵 <b>Пополнение</b>\n\n"
         "Выберите способ 👇\n\n"
         f"💳 <b>USDT</b> через @CryptoBot\n\n"
-        f"🪙 <b>DIGI</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DIGI</b>"
+        f"🪙 <b>DGR</b> за Stars <b>{stars_min}⭐ = {min_digi:,} DGR</b>"
     )
     await premium.answer_html(call.message, text, reply_markup=_topup_choose_kb().as_markup())
     await call.answer()
@@ -364,12 +364,12 @@ async def stars_buy(call: CallbackQuery, cfg: Config):
 
     await call.bot.send_invoice(
         chat_id=call.from_user.id,
-        title="Пополнение DIGI за Stars",
-        description=f"{stars}⭐ → {digi:,} DIGI",
+        title="Пополнение DGR за Stars",
+        description=f"{stars}⭐ → {digi:,} DGR",
         payload=payload,
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{digi:,} DIGI", amount=int(stars))],
+        prices=[LabeledPrice(label=f"{digi:,} DGR", amount=int(stars))],
     )
 
     await call.answer()
@@ -418,5 +418,5 @@ async def stars_success(message: Message, db: Database, cfg: Config, premium: Pr
         message,
         "✅ <b>Оплата успешна!</b>\n\n"
         f"⭐ Stars: <b>{stars}</b>\n"
-        f"🪙 Начислено: <b>{digi:,} DIGI</b>"
+        f"🪙 Начислено: <b>{digi:,} DGR</b>"
     )

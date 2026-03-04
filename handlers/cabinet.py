@@ -15,7 +15,7 @@ def cabinet_actions_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🟢 Активация статуса", callback_data="activation_menu")],
         [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],
-        [InlineKeyboardButton(text="🧰 Сервис Digi", callback_data="go_service")],
+        [InlineKeyboardButton(text="🧰 Сервис DGR", callback_data="go_service")],
         [InlineKeyboardButton(text="💸 Вывод", callback_data="withdraw_menu")],
     ])
 
@@ -115,7 +115,7 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
         "👤 <b>Ваш кабинет</b>\n\n"
         f"📱 <b>Аккаунт:</b> @{rget(user, 'username', username)}\n\n"
         f"💵 <b>Баланс USDT:</b> <b>{usdt_balance:.2f}</b>\n"
-        f"🪙 <b>Баланс DIGI:</b> <b>{digi_balance:,}</b>\n\n"
+        f"🪙 <b>Баланс DGR:</b> <b>{digi_balance:,}</b>\n\n"
         f"🏷 <b>Статус:</b> <b>{status_title}</b>\n\n"
         f"🔄 <b>Конвертация:</b> <b>{convert_txt}</b>\n"
         f"💸 <b>Вывод:</b> <b>{withdraw_txt}</b>"

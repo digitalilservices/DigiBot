@@ -9,7 +9,7 @@ def admin_panel_inline() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="📈 Статистика приложения", callback_data="admin_appstats")],
             [InlineKeyboardButton(text="🧾 Пополнения", callback_data="admin_topups")],
             [InlineKeyboardButton(text="💸 Заявки на вывод", callback_data="admin_withdrawals")],
-            [InlineKeyboardButton(text="➕ Нарахувати DIGI", callback_data="admin_give_digi")],
+            [InlineKeyboardButton(text="➕ Нарахувати DGR", callback_data="admin_give_digi")],
             [InlineKeyboardButton(text="💵 Нарахувати USDT", callback_data="admin_give_usdt")],
             [InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu")],
         ]

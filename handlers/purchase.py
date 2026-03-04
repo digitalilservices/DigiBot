@@ -144,7 +144,7 @@ async def buy_convert(call: CallbackQuery, state: FSMContext, db: Database, cfg:
 
     tg_id = call.from_user.id
     if not _is_leader(db, tg_id):
-        await call.answer("⛔ DIGI → USDT доступно только со статусом Лидер", show_alert=True)
+        await call.answer("⛔ DGR → USDT доступно только со статусом Лидер", show_alert=True)
         return
     user = db.get_user(tg_id)
     if not user:
@@ -160,11 +160,11 @@ async def buy_convert(call: CallbackQuery, state: FSMContext, db: Database, cfg:
     await state.set_state(ConvertStates.waiting_digi)
 
     text = (
-        "🔄 <b>Конвертация DIGI → USDT</b>\n\n"
+        "🔄 <b>Конвертация DGR → USDT</b>\n\n"
         f"📌 Курс: <b>{rate:,} DIGI = 1 USDT</b>\n\n"
-        f"🪙 Ваш DIGI: <b>{digi_balance:,}</b>\n"
+        f"🪙 Ваш DGR: <b>{digi_balance:,}</b>\n"
         f"💵 Ваш USDT: <b>{usdt_balance:.2f}</b>\n\n"
-        f"✍️ Введите сумму в <b>DIGI</b> (минимум {rate:,}):"
+        f"✍️ Введите сумму в <b>DGR</b> (минимум {rate:,}):"
     )
     await premium.answer_html(call.message, text, reply_markup=_convert_cancel_kb())
     await call.answer()
@@ -192,9 +192,9 @@ async def convert_usdt_to_digi_start(call: CallbackQuery, state: FSMContext, db:
     await state.set_state(ConvertStates.waiting_usdt)
 
     text = (
-        "🔄 <b>Конвертация USDT → DIGI</b>\n\n"
-        f"📌 Курс: <b>1 USDT = {rate:,} DIGI</b>\n\n"
-        f"🪙 Ваш DIGI: <b>{digi_balance:,}</b>\n"
+        "🔄 <b>Конвертация USDT → DGR</b>\n\n"
+        f"📌 Курс: <b>1 USDT = {rate:,} DGR</b>\n\n"
+        f"🪙 Ваш DGR: <b>{digi_balance:,}</b>\n"
         f"💵 Ваш USDT: <b>{usdt_balance:.2f}</b>\n\n"
         "✍️ Введите сумму в <b>USDT</b> (пример: <b>1</b> или <b>2.5</b>):"
     )
@@ -229,8 +229,8 @@ async def convert_menu(call: CallbackQuery, db: Database, cfg: Config, premium: 
 
     text = (
         "🔄 <b>Конвертация</b>\n\n"
-        f"📌 Курс: <b>{rate:,} DIGI = 1 USDT</b>\n\n"
-        f"🪙 Ваш DIGI: <b>{digi_balance:,}</b>\n"
+        f"📌 Курс: <b>{rate:,} DGR = 1 USDT</b>\n\n"
+        f"🪙 Ваш DGR: <b>{digi_balance:,}</b>\n"
         f"💵 Ваш USDT: <b>{usdt_balance:.2f}</b>\n\n"
         "Выберите направление:"
     )
@@ -240,12 +240,12 @@ async def convert_menu(call: CallbackQuery, db: Database, cfg: Config, premium: 
 async def convert_amount(message: Message, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
     amount_digi = _parse_int(message.text)
     if amount_digi is None or amount_digi <= 0:
-        await premium.answer_html(message, "❌ Введите число DIGI. Пример: <b>5000</b>")
+        await premium.answer_html(message, "❌ Введите число DGR. Пример: <b>5000</b>")
         return
 
     rate = int(getattr(cfg, "DIGI_PER_1_USDT", 5000))
     if amount_digi < rate:
-        await premium.answer_html(message, f"❌ Минимум для конвертации: <b>{rate:,} DIGI</b>")
+        await premium.answer_html(message, f"❌ Минимум для конвертации: <b>{rate:,} DGR</b>")
         return
 
     tg_id = message.from_user.id
@@ -256,7 +256,7 @@ async def convert_amount(message: Message, state: FSMContext, db: Database, cfg:
 
     digi_balance = int(rget(user, "balance_digi", 0) or 0)
     if digi_balance < amount_digi:
-        await premium.answer_html(message, f"❌ Недостаточно DIGI.\nВаш баланс: <b>{digi_balance:,}</b> DIGI")
+        await premium.answer_html(message, f"❌ Недостаточно DGR.\nВаш баланс: <b>{digi_balance:,}</b> DGR")
         return
 
     usdt_add = amount_digi / float(rate)
@@ -265,7 +265,7 @@ async def convert_amount(message: Message, state: FSMContext, db: Database, cfg:
 
     await premium.answer_html(message,
         "✅ <b>Подтверждение</b>\n\n"
-        f"🪙 Списать: <b>{amount_digi:,} DIGI</b>\n"
+        f"🪙 Списать: <b>{amount_digi:,} DGR</b>\n"
         f"💵 Зачислить: <b>{usdt_add:.6f} USDT</b>\n\n"
         "Подтвердить конвертацию?",
         reply_markup=_convert_confirm_kb(),
@@ -300,7 +300,7 @@ async def convert_amount_usdt(message: Message, state: FSMContext, db: Database,
     await premium.answer_html(message,
         "✅ <b>Подтверждение</b>\n\n"
         f"💵 Списать: <b>{amount_usdt:.2f} USDT</b>\n"
-        f"🪙 Зачислить: <b>{digi_add:,} DIGI</b>\n\n"
+        f"🪙 Зачислить: <b>{digi_add:,} DGR</b>\n\n"
         "Подтвердить конвертацию?",
         reply_markup=_convert_confirm_kb(),
     )
@@ -339,7 +339,7 @@ async def convert_confirm(call: CallbackQuery, state: FSMContext, db: Database, 
             digi_balance = int((u["balance_digi"] if "balance_digi" in u.keys() else 0) or 0)
             if digi_balance < amount_digi:
                 conn.rollback()
-                await call.answer("⛔ Недостаточно DIGI", show_alert=True)
+                await call.answer("⛔ Недостаточно DGR", show_alert=True)
                 return
 
             cur.execute(
@@ -359,9 +359,9 @@ async def convert_confirm(call: CallbackQuery, state: FSMContext, db: Database, 
             await state.clear()
             await premium.answer_html(call.message,
                 "✅ <b>Конвертация выполнена!</b>\n\n"
-                f"🪙 -<b>{amount_digi:,}</b> DIGI\n"
+                f"🪙 -<b>{amount_digi:,}</b> DGR\n"
                 f"💵 +<b>{usdt_add:.6f}</b> USDT\n\n"
-                f"📌 Курс: {rate:,} DIGI = 1 USDT"
+                f"📌 Курс: {rate:,} DGR = 1 USDT"
             )
             await call.answer()
             return
@@ -394,8 +394,8 @@ async def convert_confirm(call: CallbackQuery, state: FSMContext, db: Database, 
         await premium.answer_html(call.message,
             "✅ <b>Конвертация выполнена!</b>\n\n"
             f"💵 -<b>{amount_usdt:.2f}</b> USDT\n"
-            f"🪙 +<b>{digi_add:,}</b> DIGI\n\n"
-            f"📌 Курс: 1 USDT = {rate:,} DIGI"
+            f"🪙 +<b>{digi_add:,}</b> DGR\n\n"
+            f"📌 Курс: 1 USDT = {rate:,} DGR"
         )
         await call.answer()
 

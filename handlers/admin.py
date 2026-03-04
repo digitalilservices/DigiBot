@@ -342,7 +342,7 @@ def _appstats_kb() -> InlineKeyboardMarkup:
 
 def _render_appstats(st: dict) -> str:
     return (
-        "📈 <b>Статистика приложения DigiBot</b>\n\n"
+        "📈 <b>Статистика приложения DigaroBot</b>\n\n"
         f"💵 Оборот: <b>${st['turnover_usdt']:.2f}</b>\n"
         f"🧾 Созданных счетов: <b>{st['invoices_created']}</b>\n"
         f"✅ Оплат: <b>{st['payments_count']}</b>\n"
@@ -541,7 +541,7 @@ async def admin_stats(call: CallbackQuery, db: Database, cfg: Config, premium: P
         "📊 <b>Статистика</b>\n\n"
         f"👥 Пользователей: <b>{st['users']}</b>\n"
         f"🟢 Активные (24ч): <b>{st['active_users']}</b>\n"
-        f"🪙 Общий баланс (в системе): <b>{int(st['total_balance']):,}</b> DIGI"
+        f"🪙 Общий баланс (в системе): <b>{int(st['total_balance']):,}</b> DGR"
     )
     await _answer_html(call.message, premium, text, reply_markup=_back_kb())
     await call.answer()
@@ -579,7 +579,7 @@ def _topup_format(r, idx: int, total: int) -> str:
         f"👤 user_id: <code>{int(r['user_id'])}</code>\n"
         f"👤 Имя: <b>{name_line}</b>\n"
         f"👤 Username: <b>{uname_line}</b>\n\n"
-        f"💵 <b>{float(r['amount_usdt']):.2f} USDT</b> → 💎 <b>{int(r['amount_digi']):,} DIGI</b>\n"
+        f"💵 <b>{float(r['amount_usdt']):.2f} USDT</b> → 💎 <b>{int(r['amount_digi']):,} DGR</b>\n"
         f"📌 status: <b>{r['status']}</b>\n"
         f"🧾 invoice: <code>{r['invoice_id']}</code>\n"
     )
@@ -709,7 +709,7 @@ async def admin_task_add_desc(message: Message, state: FSMContext, cfg: Config, 
 
     await state.update_data(description=desc)
     await state.set_state(AdminTaskAddStates.waiting_reward)
-    await _answer_html(message, premium, "Введите награду в <b>DIGI</b> (целое число), например: <b>500</b>")
+    await _answer_html(message, premium, "Введите награду в <b>DGR</b> (целое число), например: <b>500</b>")
 
 
 @router.message(AdminTaskAddStates.waiting_reward)
@@ -724,7 +724,7 @@ async def admin_task_add_reward(message: Message, state: FSMContext, db: Databas
 
     reward = int(raw)
     if reward <= 0 or reward > 1_000_000:
-        await _answer_html(message, premium, "❌ Награда должна быть 1..1,000,000 DIGI.")
+        await _answer_html(message, premium, "❌ Награда должна быть 1..1,000,000 DGR.")
         return
 
     data = await state.get_data()
@@ -876,7 +876,7 @@ async def admin_sub_approve(call: CallbackQuery, db: Database, cfg: Config, prem
         await call.bot.send_message(
             user_id,
             "✅ <b>Задание подтверждено!</b>\n\n"
-            f"🪙 Начислено: <b>{task_reward:,}</b> DIGI",
+            f"🪙 Начислено: <b>{task_reward:,}</b> DGR",
             parse_mode="HTML"
         )
     except Exception:
@@ -886,7 +886,7 @@ async def admin_sub_approve(call: CallbackQuery, db: Database, cfg: Config, prem
         call.message,
         premium,
         f"✅ Approved submission <b>#{sub_id}</b>\n"
-        f"🪙 Начислено пользователю <code>{user_id}</code>: <b>{task_reward:,}</b> DIGI",
+        f"🪙 Начислено пользователю <code>{user_id}</code>: <b>{task_reward:,}</b> DGR",
         reply_markup=_back_kb()
     )
     await call.answer("✅ Approve", show_alert=True)
@@ -963,7 +963,7 @@ async def admin_market_pending(call: CallbackQuery, db: Database, cfg: Config, p
             f"🆔 Submission: <b>{r['id']}</b>\n"
             f"🎯 Task: <b>#{r['task_id']}</b> ({r['kind']})\n"
             f"👤 worker_id: <code>{r['worker_id']}</code>\n"
-            f"💰 reward: <b>{int(r['price_digi']):,}</b> DIGI\n"
+            f"💰 reward: <b>{int(r['price_digi']):,}</b> DGR\n"
             f"🔗 {r['url']}\n"
         )
 
@@ -1161,7 +1161,7 @@ async def admin_give_digi_start(call: CallbackQuery, state: FSMContext, cfg: Con
     await _answer_html(
         call.message,
         premium,
-        "➕ <b>Начислить DIGI</b>\n\n"
+        "➕ <b>Начислить DGR</b>\n\n"
         "Введи <b>TG ID</b> пользователя (цифры) или напиши <b>me</b> чтобы начислить себе:"
     )
     await call.answer()
@@ -1282,7 +1282,7 @@ async def admin_give_digi_user(message: Message, state: FSMContext, db: Database
         message,
         premium,
         f"✅ Кому: <code>{target_id}</code>\n\n"
-        "Теперь введи сумму в <b>DIGI</b> (целое число), например: <b>5000</b>"
+        "Теперь введи сумму в <b>DGR</b> (целое число), например: <b>5000</b>"
     )
 
 
@@ -1312,7 +1312,7 @@ async def admin_give_digi_amount(message: Message, state: FSMContext, db: Databa
         premium,
         "✅ <b>Начислено!</b>\n\n"
         f"👤 Кому: <code>{target_id}</code>\n"
-        f"💎 Сумма: <b>{amount:,}</b> DIGI",
+        f"💎 Сумма: <b>{amount:,}</b> DGR",
         reply_markup=admin_panel_inline()
     )
 
@@ -1320,8 +1320,8 @@ async def admin_give_digi_amount(message: Message, state: FSMContext, db: Databa
         try:
             await message.bot.send_message(
                 target_id,
-                "🎁 <b>Вам начислено DIGI</b>\n\n"
-                f"🪙 +<b>{amount:,}</b> DIGI",
+                "🎁 <b>Вам начислено DGR</b>\n\n"
+                f"🪙 +<b>{amount:,}</b> DGR",
                 parse_mode="HTML"
             )
         except Exception:

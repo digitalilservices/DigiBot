@@ -381,8 +381,8 @@ async def my_tasks_msg(message: Message, db: Database, premium: PremiumEmoji):
 
         lines.append(
             f"🆔 <b>#{i}</b> | {kind}\n"
-            f"🪙 <b>{price:,} DIGI</b> | 📦 <b>{done}/{total_qty}</b>\n"
-            f"🔒 <b>Остаток бюджета (escrow):</b> <b>{escrow:,} DIGI</b>\n"
+            f"🪙 <b>{price:,} DGR</b> | 📦 <b>{done}/{total_qty}</b>\n"
+            f"🔒 <b>Остаток бюджета (escrow):</b> <b>{escrow:,} DGR</b>\n"
             f"{extra}"
         )
 
@@ -416,8 +416,8 @@ async def my_tasks_cb(call: CallbackQuery, db: Database, premium: PremiumEmoji):
 
         lines.append(
             f"#️⃣ <b>{i}</b> | {kind}\n"
-            f"🪙 <b>{price:,} DIGI</b> | 📦 <b>{done}/{total_qty}</b>\n"
-            f"🔒 <b>Остаток бюджета:</b> <b>{escrow:,} DIGI</b>\n"
+            f"🪙 <b>{price:,} DGR</b> | 📦 <b>{done}/{total_qty}</b>\n"
+            f"🔒 <b>Остаток бюджета:</b> <b>{escrow:,} DGR</b>\n"
             f"{extra}"
         )
 
@@ -443,7 +443,7 @@ async def cancel_my_task(call: CallbackQuery, db: Database, premium: PremiumEmoj
         call.message,
         "✅ <b>Задание отменено</b>\n\n"
         f"🆔 <b>ID:</b> <b>{task_id}</b>\n"
-        f"💸 <b>Возвращено:</b> <b>{refund:,} DIGI</b>\n\n"
+        f"💸 <b>Возвращено:</b> <b>{refund:,} DGR</b>\n\n"
         f"{msg}",
         reply_markup=_after_cancel_task_kb()
     )
@@ -546,7 +546,7 @@ async def earn_open(call: CallbackQuery, db: Database, premium: PremiumEmoji):
             "1) Нажмите <b>Перейти</b> и откройте пост\n"
             "2) Посмотрите пост\n"
             "3) Сделайте скриншот и нажмите <b>Проверить</b>\n\n"
-            f"🪙 <b>Награда:</b> <b>{reward:,} DIGI</b>\n"
+            f"🪙 <b>Награда:</b> <b>{reward:,} DGR</b>\n"
             "📎 <b>Проверка:</b> по скриншоту."
         )
     elif kind == "react":
@@ -556,7 +556,7 @@ async def earn_open(call: CallbackQuery, db: Database, premium: PremiumEmoji):
             "1) Нажмите <b>Перейти</b>\n"
             f"2) Поставьте реакцию: <b>{reaction or 'не указано'}</b>\n"
             "3) Сделайте скриншот и нажмите <b>Проверить</b>\n\n"
-            f"🪙 <b>Награда:</b> <b>{reward:,} DIGI</b>\n"
+            f"🪙 <b>Награда:</b> <b>{reward:,} DGR</b>\n"
             "📎 <b>Проверка:</b> по скриншоту."
         )
     else:  # bot
@@ -567,7 +567,7 @@ async def earn_open(call: CallbackQuery, db: Database, premium: PremiumEmoji):
             "1) Нажмите <b>Перейти</b>\n"
             "2) Выполните условия\n"
             "3) Сделайте скриншот и нажмите <b>Проверить</b>\n\n"
-            f"🪙 <b>Награда:</b> <b>{reward:,} DIGI</b>\n"
+            f"🪙 <b>Награда:</b> <b>{reward:,} DGR</b>\n"
             "📎 <b>Проверка:</b> по скриншоту."
         )
 
@@ -719,7 +719,7 @@ async def earn_manual_screenshot(message: Message, state: FSMContext, db: Databa
         message,
         "✅ <b>Заявка отправлена!</b>\n\n"
         "⏳ <b>Статус:</b> <b>на проверке</b>\n\n"
-        "<b>После подтверждения владельцем будет начислено DIGI.</b>"
+        "<b>После подтверждения владельцем будет начислено DGR.</b>"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[[
@@ -735,7 +735,7 @@ async def earn_manual_screenshot(message: Message, state: FSMContext, db: Databa
         f"🎯 <b>Задание ID:</b> <b>{task_id}</b>\n"
         f"📌 <b>Тип:</b> <b>{_pretty_kind(kind)}</b>\n"
         f"{extra}"
-        f"🪙 <b>Награда:</b> <b>{reward:,} DIGI</b>\n"
+        f"🪙 <b>Награда:</b> <b>{reward:,} DGR</b>\n"
         f"🔗 <b>Ссылка:</b> {url}\n\n"
         "Проверьте скриншот и выберите действие:"
     )
@@ -915,7 +915,7 @@ async def earn_add_link(message: Message, state: FSMContext, premium: PremiumEmo
     await premium.answer_html(
         message,
         "🪙 <b>Введите оплату за 1 выполнение</b>\n\n"
-        "Рекомендация: <b>от 100 DIGI</b>",
+        "Рекомендация: <b>от 100 DGR</b>",
         reply_markup=_back_to_add_root_kb()
     )
 
@@ -931,7 +931,7 @@ async def earn_add_instructions(message: Message, state: FSMContext, premium: Pr
     await premium.answer_html(
         message,
         "🪙 <b>Введите оплату за 1 выполнение</b>\n\n"
-        "Рекомендация: <b>от 100 DIGI</b>",
+        "Рекомендация: <b>от 100 DGR</b>",
         reply_markup=_back_to_add_root_kb()
     )
 
@@ -947,7 +947,7 @@ async def earn_add_reaction(message: Message, state: FSMContext, premium: Premiu
     await premium.answer_html(
         message,
         "🪙 <b>Введите оплату за 1 выполнение</b>\n\n"
-        "Рекомендация: <b>от 100 DIGI</b>",
+        "Рекомендация: <b>от 100 DGR</b>",
         reply_markup=_back_to_add_root_kb()
     )
 
@@ -970,10 +970,10 @@ async def earn_add_price(message: Message, state: FSMContext, db: Database, prem
     price = int(raw)
 
     if price < 50:
-        await premium.answer_html(message, "❌ Минимальная цена задания: <b>50 DIGI</b>")
+        await premium.answer_html(message, "❌ Минимальная цена задания: <b>50 DGR</b>")
         return
     if price > 300:
-        await premium.answer_html(message, "❌ Максимальная цена задания: <b>300 DIGI</b>")
+        await premium.answer_html(message, "❌ Максимальная цена задания: <b>300 DGR</b>")
         return
 
     await state.update_data(price=price)
@@ -983,8 +983,8 @@ async def earn_add_price(message: Message, state: FSMContext, db: Database, prem
         message,
         "📦 <b>Сколько нужно выполнений?</b>\n"
         "Например: <b>20</b>\n\n"
-        f"🪙 Ваш баланс: <b>{bal:,} DIGI</b>\n"
-        f"🧾 Сейчас: <b>{price:,} DIGI</b> за 1 выполнение",
+        f"🪙 Ваш баланс: <b>{bal:,} DGR</b>\n"
+        f"🧾 Сейчас: <b>{price:,} DGR</b> за 1 выполнение",
         reply_markup=_back_to_add_root_kb()
     )
 
@@ -1019,9 +1019,9 @@ async def earn_add_qty(message: Message, state: FSMContext, db: Database, premiu
     if bal < budget:
         await premium.answer_html(
             message,
-            "❌ <b>Недостаточно DIGI для создания задания</b>\n\n"
-            f"🪙 Ваш баланс: <b>{bal:,} DIGI</b>\n"
-            f"🧾 Нужно списать: <b>{budget:,} DIGI</b>\n\n"
+            "❌ <b>Недостаточно DGR для создания задания</b>\n\n"
+            f"🪙 Ваш баланс: <b>{bal:,} DGR</b>\n"
+            f"🧾 Нужно списать: <b>{budget:,} DGR</b>\n\n"
             "Пополните баланс или уменьшите количество/цену.",
             reply_markup=_back_to_add_root_kb()
         )
@@ -1060,10 +1060,10 @@ async def earn_add_qty(message: Message, state: FSMContext, db: Database, premiu
         f"🆔 <b>ID:</b> <b>{task_id}</b>\n"
         f"📌 <b>Тип:</b> <b>{_pretty_kind(kind)}</b>\n"
         f"{extra}"
-        f"🪙 <b>За 1:</b> <b>{price:,} DIGI</b>\n"
+        f"🪙 <b>За 1:</b> <b>{price:,} DGR</b>\n"
         f"📦 <b>Количество:</b> <b>{qty}</b>\n"
-        f"💸 <b>Списано бюджет:</b> <b>{budget:,} DIGI</b>\n"
-        f"🪙 <b>Баланс:</b> <b>{bal_after:,} DIGI</b>\n\n"
+        f"💸 <b>Списано бюджет:</b> <b>{budget:,} DGR</b>\n"
+        f"🪙 <b>Баланс:</b> <b>{bal_after:,} DGR</b>\n\n"
         "Выберите действие ниже 👇"
     )
 

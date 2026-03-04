@@ -65,16 +65,16 @@ async def cmd_start(message: Message, db: Database, cfg: Config, premium: Premiu
 
     # 1) Приветствие (текст не меняю)
     text = (
-        "✨ <b>Добро пожаловать в DigiBot!</b> экосистему сервисов заработка и рекламы!\n\n"
-        "🪙 <b>Зарабатывай DIGI на заданиях</b>\n"
+        "✨ <b>Добро пожаловать в DigaroBot!</b> экосистему сервисов заработка и рекламы!\n\n"
+        "🪙 <b>Зарабатывай DGR на заданиях</b>\n"
         "👥 <b>Получай 4 💵 за реферала</b>\n"
         "📢 <b>Продвигай свои проекты</b>\n"
         "🎰 <b>Играй в мини игры</b>\n\n"
         "🔄 <b>Конвертация</b>\n"
-        "<b>5000 DIGI = 1 USDT</b>\n\n"
+        "<b>5000 DGR = 1 USDT</b>\n\n"
         "🚀 <b>Как это работает?</b>\n"
         "📝 Выполняй задания\n"
-        "🪙 Получай <b>DIGI</b>\n"
+        "🪙 Получай <b>DGR</b>\n"
         "🔄 Конвертируй в <b>USDT</b>\n"
         "💚 Выводи со статусом <b>«Активный»</b>\n\n"
         "<b>Выбери раздел в меню ниже</b> 👇"
@@ -100,7 +100,7 @@ async def cmd_start(message: Message, db: Database, cfg: Config, premium: Premiu
                 await premium.answer_html(
                     message,
                     "🎁 <b>Стартовый бонус !</b>\n\n"
-                    f"🪙 Вам начислено: <b>+{SIGNUP_BONUS_DIGI:,} DIGI</b>\n\n"
+                    f"🪙 Вам начислено: <b>+{SIGNUP_BONUS_DIGI:,} DGR</b>\n\n"
                     "Используйте их для заданий, рекламы или заработка 🚀",
                 )
                 db.touch_user(tg_id, username, first_name)

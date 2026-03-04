@@ -96,7 +96,7 @@ async def referral(message: Message, cfg: Config, db: Database, premium: Premium
 
     # ✅ Кнопка "Поделиться"
     share_text = (
-        "🚀 Присоединяйся к DigiBot и зарабатывай USDT!\n\n"
+        "🚀 Присоединяйся к DigaroBot и зарабатывай USDT!\n\n"
         "💵 Награда: 4 USDT за приглашённого друга"
     )
     share_url = f"https://t.me/share/url?url={quote(ref_link)}&text={quote(share_text)}"

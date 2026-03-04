@@ -152,7 +152,7 @@ async def _bg_auto_approve_manual(bot: Bot, db: Database, cfg) -> None:
                                 "⚠️ <b>Авто-подтверждение заявки</b>\n\n"
                                 f"Задание #{task_id} ({kind}) было подтверждено автоматически, "
                                 "потому что вы не проверили заявку за 24 часа.\n"
-                                f"Исполнителю начислено: <b>{reward} DIGI</b>"
+                                f"Исполнителю начислено: <b>{reward} DGR</b>"
                             )
                         except Exception:
                             pass
@@ -263,7 +263,7 @@ async def _bg_check_unsub_penalty(bot: Bot, db: Database, cfg) -> None:
                                 worker_id,
                                 "⛔ <b>Штраф за отписку</b>\n\n"
                                 f"Ты отписался от {('канала' if kind=='channel' else 'группы')} раньше чем через {days} дней.\n"
-                                f"Списано: <b>{reward} DIGI</b>."
+                                f"Списано: <b>{reward} DGR</b>."
                             )
                         except Exception:
                             pass
@@ -273,7 +273,7 @@ async def _bg_check_unsub_penalty(bot: Bot, db: Database, cfg) -> None:
                                 owner_id,
                                 "✅ <b>Компенсация за отписку</b>\n\n"
                                 f"Исполнитель отписался раньше {days} дней.\n"
-                                f"Начислено вам: <b>{reward} DIGI</b> (возврат)."
+                                f"Начислено вам: <b>{reward} DGR</b> (возврат)."
                             )
                         except Exception:
                             pass

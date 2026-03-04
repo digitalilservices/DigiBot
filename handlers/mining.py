@@ -263,13 +263,13 @@ def _mining_text(user_row, earned_now: float = 0.0) -> str:
         plus_line = f""
 
     return (
-        f"⛏ <b>Майнинг DIGI</b>\n"
+        f"⛏ <b>Майнинг DGR</b>\n"
         f"👤 <b>Пользователь:</b>{username}\n\n"
         f"⚡ <b>Мощность:</b> {_fmt2(power)}\n"
         f"❤️ <b>HP:</b> {hp}%\n\n"
-        f"⏱ <b>Доход/час:</b> {_fmt2(rate)} DIGI/час\n"
-        f"📦 <b>Намайнено:</b> {_fmt2(stored)} DIGI\n\n"
-        f"🪙 <b>Баланс DIGI:</b> {digi_balance}\n"
+        f"⏱ <b>Доход/час:</b> {_fmt2(rate)} DGR/час\n"
+        f"📦 <b>Намайнено:</b> {_fmt2(stored)} DGR\n\n"
+        f"🪙 <b>Баланс DGR:</b> {digi_balance}\n"
         f"💵 <b>Баланс USDT:</b> {_fmt2(usdt_balance)}\n\n"
         f"⚡ <b>Буст:</b> {boost_str}\n"
         f"🛡 <b>Щит:</b> {shield_str}"
@@ -400,7 +400,7 @@ async def mining_upgrade(call: CallbackQuery, state: FSMContext, premium: Premiu
     await state.set_state(MiningStates.upgrade_amount)
     text = (
         "🔝 <b>Прокачка майнера</b>\n\n"
-        f"Введи сумму в <b>DIGI</b> (минимум {MIN_UPGRADE_DIGI}).\n"
+        f"Введи сумму в <b>DGR</b> (минимум {MIN_UPGRADE_DIGI}).\n"
         "Чем больше вложишь — тем сильнее майнер.\n\n"
         "<b>Отправь число сообщением</b> 👇"
     )
@@ -419,7 +419,7 @@ async def mining_upgrade_amount(message: Message, state: FSMContext, db: Databas
         return
 
     if amount < MIN_UPGRADE_DIGI:
-        await premium.answer_html(message, f"❌ Минимум {MIN_UPGRADE_DIGI} DIGI.")
+        await premium.answer_html(message, f"❌ Минимум {MIN_UPGRADE_DIGI} DGR.")
         return
 
     conn = db._connect()
@@ -437,7 +437,7 @@ async def mining_upgrade_amount(message: Message, state: FSMContext, db: Databas
 
         if bal < amount:
             conn.rollback()
-            await premium.answer_html(message, "❌ Недостаточно DIGI на балансе.")
+            await premium.answer_html(message, "❌ Недостаточно DGR на балансе.")
             return
 
         power_add = round(math.sqrt(amount) / 100.0, 4)
@@ -715,8 +715,8 @@ async def mining_attack_open(call: CallbackQuery, db: Database, premium: Premium
         f"⚔️ <b>Цель:</b> {uname}\n\n"
         f"⚡ <b>Сила цели:</b> {_fmt2(t_power)}\n"
         f"❤️ <b>HP цели:</b> {t_hp}%\n"
-        f"📦 <b>У цели намайнено:</b> {_fmt2(t_stored)} DIGI\n"
-        f"🎒 <b>Ты можешь украсть:</b> до <b>{_fmt2(can_steal)}</b> DIGI\n\n"
+        f"📦 <b>У цели намайнено:</b> {_fmt2(t_stored)} DGR\n"
+        f"🎒 <b>Ты можешь украсть:</b> до <b>{_fmt2(can_steal)}</b> DGR\n\n"
         f"🗓 <b>Атак сегодня осталось:</b> {attempts_left}"
     )
 
@@ -870,10 +870,10 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
                     push = (
                         "🚨 <b>Вас атакуют!</b>\n\n"
                         f"🎯 Атакующий: {attacker_tag}\n"
-                        f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DIGI\n"
+                        f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DGR\n"
                         f"⚡ Потеря мощности: <b>-{_fmt2(power_steal)}</b>\n"
                         f"❤️ Потеря HP: <b>-{hp_steal}%</b>\n"
-                        f"📦 Осталось в хранилище: <b>{_fmt2(new_t_stored)}</b> DIGI"
+                        f"📦 Осталось в хранилище: <b>{_fmt2(new_t_stored)}</b> DGR"
                     )
                     m = await call.bot.send_message(chat_id=target_id, text="…")
                     await premium.edit_html(m, push)
@@ -902,7 +902,7 @@ async def mining_attack_do(call: CallbackQuery, db: Database, premium: PremiumEm
     # ✅ Текст НЕ трогаю, просто теперь stolen/dmg будут правильными
     res = (
         "✅ <b>Атака завершена!</b>\n\n"
-        f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DIGI\n"
+        f"🔻 Украдено: <b>{_fmt2(stolen)}</b> DGR\n"
         f"❤️ Урон цели: <b>-{dmg}%</b>\n\n"
         "Открываю список целей…"
     )

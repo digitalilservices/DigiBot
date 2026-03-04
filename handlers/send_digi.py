@@ -21,7 +21,7 @@ def _hash_key(raw_key: str) -> str:
 
 def _menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🧰 Сервис Digi", callback_data="go_service")],
+        [InlineKeyboardButton(text="🧰 Сервис DGR", callback_data="go_service")],
         [InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu")]
     ])
 

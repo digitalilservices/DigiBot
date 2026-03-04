@@ -58,7 +58,7 @@ def main_menu_kb(is_admin: bool = False, miniapp_url: str = "") -> ReplyKeyboard
 
     last_row = [
         KeyboardButton(text="📊 Статистика"),
-        KeyboardButton(text="ℹ️ О экосистеме DigiBot"),
+        KeyboardButton(text="ℹ️ О экосистеме DigaroBot"),
     ]
     if is_admin:
         last_row.append(KeyboardButton(text="🔐 Админ Панель"))
