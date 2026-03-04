@@ -54,14 +54,14 @@ SHIELD_PACKS = [
 MAX_ACCRUAL_SECONDS = 7 * 24 * 3600
 
 # атака: % от stored, но не больше, чем cap по силе атакующего
-STEAL_PCT = 0.30
-STEAL_CAP_PER_POWER = 3.0  # max_steal = power * this
+STEAL_PCT = 0.60
+STEAL_CAP_PER_POWER = 10.0  # max_steal = power * this
 
 POWER_STEAL_PCT = 0.02   # 2% мощности цели
-POWER_STEAL_CAP = 0.25   # но не больше 0.25 за атаку
+POWER_STEAL_CAP = 0.50   # но не больше 0.25 за атаку
 
 HP_STEAL_PCT = 0.06      # 6% HP цели
-HP_STEAL_CAP = 8         # но не больше 8 HP за атаку
+HP_STEAL_CAP = 15         # но не больше 8 HP за атаку
 
 
 # =========================
