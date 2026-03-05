@@ -12,8 +12,7 @@ router = Router()
 # ===== СПИСОК БОТОВ =====
 SERVICE_BOTS = [
     ("🤖 Бот Рассылка", "BlastTGService_bot"),
-    ("📈 SMM Bot", "your_smm_bot_username"),
-    ("🎮 Game Bot", "your_game_bot_username"),
+    ("🎙 VoiceBot", "DigaroVoiceBot"),
 ]
 # ========================
 
