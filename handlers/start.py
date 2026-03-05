@@ -77,6 +77,7 @@ async def cmd_start(message: Message, db: Database, cfg: Config, premium: Premiu
         "🪙 Получай <b>DGR</b>\n"
         "🔄 Конвертируй в <b>USDT</b>\n"
         "💚 Выводи со статусом <b>«Активный»</b>\n\n"
+        "👛 <b>Все операции пополнения и вывода проходят официально через</b> @CryptoBot.\n\n"
         "<b>Выбери раздел в меню ниже</b> 👇"
     )
 
