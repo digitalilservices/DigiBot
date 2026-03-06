@@ -55,7 +55,7 @@ MAX_ACCRUAL_SECONDS = 7 * 24 * 3600
 
 # атака: % от stored, но не больше, чем cap по силе атакующего
 STEAL_PCT = 0.60
-STEAL_CAP_PER_POWER = 10.0  # max_steal = power * this
+STEAL_CAP_PER_POWER = 1000000.0  # max_steal = power * this
 
 POWER_STEAL_PCT = 0.02   # 2% мощности цели
 POWER_STEAL_CAP = 0.50   # но не больше 0.25 за атаку
