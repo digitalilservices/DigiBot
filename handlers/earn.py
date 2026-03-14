@@ -1,6 +1,7 @@
 # handlers/earn.py
 from __future__ import annotations
 
+import logging
 import re
 import math
 from typing import Optional
@@ -1102,47 +1103,44 @@ async def owner_approve(call: CallbackQuery, db: Database, cfg: Config, premium:
     if done >= limit:
         db.market_manual_set_status(sub_id, "rejected")
         await call.answer("⛔ У исполнителя лимит на сегодня. Отклонено.", show_alert=True)
+
         try:
             await call.bot.send_message(
                 worker_id,
-                premium.format(f"⛔ Лимит на сегодня: {limit} заданий. Попробуйте завтра.")
+                f"⛔ Лимит на сегодня: {limit} заданий. Попробуйте завтра.",
+                parse_mode="HTML"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logging.exception("Failed to notify worker about daily limit: %s", e)
+
         try:
-            await call.message.edit_caption(
-                (call.message.caption or "") +
-                "\n\n" +
-                premium.format("⛔ <b>Лимит исполнителя</b>")
-            )
-        except Exception:
-            pass
+            await call.message.delete()
+        except Exception as e:
+            logging.exception("Failed to delete owner review message: %s", e)
+
         return
 
     ok, msg = db.market_complete_task_and_pay(task_id=task_id, worker_id=worker_id)
     if ok:
         db.market_manual_set_status(sub_id, "approved")
         db.inc_tasks_done_today(worker_id, 1)
-
         db.increment_tasks_completed(worker_id)
 
         await call.answer("✅ Зачислено", show_alert=True)
+
         try:
             await call.bot.send_message(
                 worker_id,
-                premium.format(f"✅ Ваш скриншот подтверждён. {msg}")
+                f"✅ Ваш скриншот подтверждён. {msg}",
+                parse_mode="HTML"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logging.exception("Failed to notify worker about approve: %s", e)
 
         try:
-            await call.message.edit_caption(
-                (call.message.caption or "") +
-                "\n\n" +
-                premium.format("✅ <b>Подтверждено</b>")
-            )
-        except Exception:
-            pass
+            await call.message.delete()
+        except Exception as e:
+            logging.exception("Failed to delete owner review message: %s", e)
     else:
         await call.answer(str(msg), show_alert=True)
 
@@ -1177,19 +1175,13 @@ async def owner_reject(call: CallbackQuery, db: Database, premium: PremiumEmoji)
     try:
         await call.bot.send_message(
             worker_id,
-            premium.format(
-                "❌ Скриншот отклонён владельцем.\n"
-                "Попробуйте ещё раз и отправьте новый скриншот."
-            )
+            "❌ Скриншот отклонён владельцем.\nПопробуйте ещё раз и отправьте новый скриншот.",
+            parse_mode="HTML"
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.exception("Failed to notify worker about reject: %s", e)
 
     try:
-        await call.message.edit_caption(
-            (call.message.caption or "") +
-            "\n\n" +
-            premium.format("❌ <b>Отклонено</b>")
-        )
-    except Exception:
-        pass
+        await call.message.delete()
+    except Exception as e:
+        logging.exception("Failed to delete owner review message: %s", e)
