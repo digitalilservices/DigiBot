@@ -51,6 +51,7 @@ def main_menu_kb(is_admin: bool = False, miniapp_url: str = "") -> ReplyKeyboard
 
     keyboard = [
         [KeyboardButton(text="👤 Кабинет"), KeyboardButton(text="💰 Пополнить")],
+        [KeyboardButton(text="🚀 Продвижение")],
         [KeyboardButton(text="💸 Заработать"), KeyboardButton(text="👥 Реферал")],
         [KeyboardButton(text="👨‍💻 Администратор")],
     ]
@@ -109,6 +110,26 @@ def admin_contact_inline(support_username: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="👨‍💻 Написать админу", url=f"https://t.me/{support_username[1:]}")],
             [InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu")],
+        ]
+    )
+
+def promotion_platforms_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🌟 Telegram Premium", callback_data="promo_tg_premium"),
+                InlineKeyboardButton(text="✈️ Telegram", callback_data="promo_telegram"),
+            ],
+            [
+                InlineKeyboardButton(text="📸 Instagram", callback_data="promo_instagram"),
+                InlineKeyboardButton(text="🎵 TikTok", callback_data="promo_tiktok"),
+            ],
+            [
+                InlineKeyboardButton(text="📺 YouTube", callback_data="promo_youtube"),
+            ],
+            [
+                InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu"),
+            ]
         ]
     )
 

@@ -332,7 +332,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(send_digi_router)
     dp.include_router(games.router)
-    
+
 
     # ===== MINI APP SERVER (aiohttp) =====
     # В config должны быть: WEBAPP_HOST, WEBAPP_PORT

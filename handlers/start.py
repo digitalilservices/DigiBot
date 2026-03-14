@@ -5,6 +5,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 
+from keyboards.main_menu import main_menu_kb, promotion_platforms_kb
 from config import Config
 from database import Database
 from keyboards.main_menu import main_menu_kb
@@ -33,6 +34,15 @@ def _parse_referrer_id(text: str) -> int | None:
         return int(raw)
     except ValueError:
         return None
+
+
+@router.message(F.text == "🚀 Продвижение")
+async def open_promotion_menu(message: Message, premium: PremiumEmoji):
+    await premium.answer_html(
+        message,
+        "📂 <b>Выберите платформу для продвижения</b>",
+        reply_markup=promotion_platforms_kb(),
+    )
 
 
 @router.message(CommandStart())
