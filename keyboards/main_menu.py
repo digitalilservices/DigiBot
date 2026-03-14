@@ -384,3 +384,20 @@ def ig_comments_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def ig_provider_likes_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="ig_provider_likes_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_instagram")],
+        ]
+    )
+
+
+def ig_provider_likes_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="ig_provider_likes_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+

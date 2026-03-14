@@ -37,6 +37,8 @@ from keyboards.main_menu import (
     ig_stories_confirm_kb,
     ig_comments_info_kb,
     ig_comments_confirm_kb,
+    ig_provider_likes_info_kb,
+    ig_provider_likes_confirm_kb,
 )
 
 router = Router()
@@ -89,6 +91,10 @@ IG_COMMENTS_PRICE_PER_1000 = 35.0
 IG_COMMENTS_MIN = 5
 IG_COMMENTS_MAX = 1000
 
+IG_PROVIDER_LIKES_PRICE_PER_1000 = 15.0
+IG_PROVIDER_LIKES_MIN = 10
+IG_PROVIDER_LIKES_MAX = 10000
+
 
 class PromotionStates(StatesGroup):
     tp_online_subs_link = State()
@@ -126,6 +132,9 @@ class PromotionStates(StatesGroup):
 
     ig_comments_link = State()
     ig_comments_quantity = State()
+
+    ig_provider_likes_link = State()
+    ig_provider_likes_quantity = State()
 
 
 def _is_valid_tg_link(link: str) -> bool:
@@ -185,6 +194,9 @@ def _calc_tg_provider_reactions_price(quantity: int) -> float:
 
 def _calc_ig_comments_price(quantity: int) -> float:
     return round((quantity / 1000) * IG_COMMENTS_PRICE_PER_1000, 2)
+
+def _calc_ig_provider_likes_price(quantity: int) -> float:
+    return round((quantity / 1000) * IG_PROVIDER_LIKES_PRICE_PER_1000, 2)
 
 
 @router.message(F.text == "🚀 Продвижение")
@@ -252,6 +264,30 @@ async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         text,
         reply_markup=tp_online_subs_info_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "ig_provider_likes")
+async def ig_provider_likes_info(call: CallbackQuery, premium: PremiumEmoji):
+    text = (
+        "ℹ️ <b>Информация об услуге</b>\n\n"
+        "📝 <b>IG ⭐ Лайки плавные (живые с охватом)</b>\n\n"
+        "Старт 1-30 мин.\n\n"
+        "Скорость до 1000 в сутки\n\n"
+        "Лучшая услуга на данный момент. Супер-высокое качество!\n\n"
+        "Высокий шанс попадания в ТОП.\n\n"
+        "Лайки на фото/видео от живых пользователей.\n\n"
+        "С лайками так же добавляется охват и прочая статистика.\n\n"
+        "Работают всегда!\n\n"
+        "⏱ <b>Среднее время завершения:</b> 2 ч. 50 мин.\n\n"
+        f"💸 <b>Цена за 1000:</b> {IG_PROVIDER_LIKES_PRICE_PER_1000:.0f} USDT\n\n"
+        f"📉 <b>Минимальное количество:</b> {IG_PROVIDER_LIKES_MIN}\n"
+        f"📈 <b>Максимальное количество:</b> {IG_PROVIDER_LIKES_MAX}"
+    )
+    await premium.answer_html(
+        call.message,
+        text,
+        reply_markup=ig_provider_likes_info_kb(),
     )
     await call.answer()
 
@@ -499,6 +535,19 @@ async def tp_online_subs_order(call: CallbackQuery, state: FSMContext, premium: 
     )
     await call.answer()
 
+@router.callback_query(F.data == "ig_provider_likes_order")
+async def ig_provider_likes_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
+    await state.clear()
+    await state.set_state(PromotionStates.ig_provider_likes_link)
+
+    await premium.answer_html(
+        call.message,
+        "🔗 <b>Отправьте ссылку на Instagram пост</b>\n\n"
+        "Пример:\n"
+        "<code>https://www.instagram.com/p/XXXXXXXX/</code>",
+    )
+    await call.answer()
+
 @router.callback_query(F.data == "ig_stories_order")
 async def ig_stories_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
     await state.clear()
@@ -667,6 +716,28 @@ async def tp_online_subs_get_link(message: Message, state: FSMContext, premium: 
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_ONLINE_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_ONLINE_SUBS_MAX}</b>",
+    )
+
+@router.message(PromotionStates.ig_provider_likes_link)
+async def ig_provider_likes_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
+    link = (message.text or "").strip()
+
+    if not link.startswith("http"):
+        await premium.answer_html(
+            message,
+            "❌ <b>Ссылка некорректна.</b>\n\n"
+            "Отправьте ссылку на Instagram пост.",
+        )
+        return
+
+    await state.update_data(link=link)
+    await state.set_state(PromotionStates.ig_provider_likes_quantity)
+
+    await premium.answer_html(
+        message,
+        f"📥 <b>Теперь введите количество лайков</b>\n\n"
+        f"Минимум: <b>{IG_PROVIDER_LIKES_MIN}</b>\n"
+        f"Максимум: <b>{IG_PROVIDER_LIKES_MAX}</b>",
     )
 
 @router.message(PromotionStates.ig_comments_link)
@@ -981,6 +1052,59 @@ async def tp_target_views_get_quantity(
         message,
         text,
         reply_markup=tp_target_views_confirm_kb(),
+    )
+
+@router.message(PromotionStates.ig_provider_likes_quantity)
+async def ig_provider_likes_get_quantity(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    premium: PremiumEmoji,
+):
+    raw = (message.text or "").strip()
+
+    if not raw.isdigit():
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
+        return
+
+    quantity = int(raw)
+
+    if quantity < IG_PROVIDER_LIKES_MIN:
+        await premium.answer_html(
+            message,
+            f"❌ Минимальное количество: <b>{IG_PROVIDER_LIKES_MIN}</b>",
+        )
+        return
+
+    if quantity > IG_PROVIDER_LIKES_MAX:
+        await premium.answer_html(
+            message,
+            f"❌ Максимальное количество: <b>{IG_PROVIDER_LIKES_MAX}</b>",
+        )
+        return
+
+    data = await state.get_data()
+    link = data["link"]
+    price = _calc_ig_provider_likes_price(quantity)
+
+    user = db.get_user(message.from_user.id)
+    balance = float(user["usdt_balance"] or 0.0) if user else 0.0
+
+    await state.update_data(quantity=quantity, price=price)
+
+    text = (
+        "📦 <b>Подтверждение заказа</b>\n\n"
+        "Услуга: <b>IG Лайки плавные</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"❤️ Количество: <b>{quantity}</b>\n"
+        f"💸 Сумма: <b>{price:.2f} USDT</b>\n"
+        f"💰 Ваш баланс: <b>{balance:.2f} USDT</b>"
+    )
+
+    await premium.answer_html(
+        message,
+        text,
+        reply_markup=ig_provider_likes_confirm_kb(),
     )
 
 @router.message(PromotionStates.ig_comments_quantity)
@@ -1636,6 +1760,86 @@ async def tp_online_subs_confirm(
         f"🛍 Услуга: <b>TG Онлайн премиум подписчики</b>\n"
         f"🔗 Ссылка: <code>{link}</code>\n"
         f"👥 Количество: <b>{quantity}</b>\n"
+        f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
+        f"📌 Статус: <b>new</b>"
+    )
+
+    try:
+        await call.bot.send_message(
+            cfg.ADMIN_ID,
+            admin_text,
+            parse_mode="HTML",
+            reply_markup=promo_order_admin_kb(order_id),
+        )
+    except Exception:
+        pass
+
+    await state.clear()
+
+    await premium.answer_html(
+        call.message,
+        "✅ <b>Заявка создана</b>\n\n"
+        f"🆔 Номер заказа: <b>#{order_id}</b>\n"
+        "Ваша заявка отправлена администратору.\n"
+        "Средства списаны с USDT баланса.",
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "ig_provider_likes_confirm")
+async def ig_provider_likes_confirm(
+    call: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    cfg,
+    premium: PremiumEmoji,
+):
+    data = await state.get_data()
+    if not data:
+        await call.answer("Данные заказа потеряны", show_alert=True)
+        return
+
+    link = data["link"]
+    quantity = int(data["quantity"])
+    price = float(data["price"])
+
+    user = db.get_user(call.from_user.id)
+    if not user:
+        await premium.answer_html(call.message, "❌ Пользователь не найден в базе.")
+        await call.answer()
+        return
+
+    ok = db.subtract_ref_balance(call.from_user.id, price)
+    if not ok:
+        actual_user = db.get_user(call.from_user.id)
+        balance = float(actual_user["usdt_balance"] or 0.0) if actual_user else 0.0
+        await premium.answer_html(
+            call.message,
+            "❌ <b>Недостаточно USDT на балансе.</b>\n\n"
+            f"Нужно: <b>{price:.2f} USDT</b>\n"
+            f"У вас: <b>{balance:.2f} USDT</b>",
+        )
+        await call.answer()
+        return
+
+    order_id = db.create_promotion_order(
+        user_id=call.from_user.id,
+        username=call.from_user.username or "",
+        service_code="ig_provider_likes",
+        service_name="IG Лайки плавные",
+        link=link,
+        quantity=quantity,
+        price_usdt=price,
+    )
+
+    admin_text = (
+        "📥 <b>Новая заявка на продвижение</b>\n\n"
+        f"🆔 Заказ: <b>#{order_id}</b>\n"
+        f"👤 Пользователь: <b>{call.from_user.full_name}</b>\n"
+        f"🔹 Username TG: @{call.from_user.username or 'без username'}\n"
+        f"🆔 TG ID: <code>{call.from_user.id}</code>\n\n"
+        f"🛍 Услуга: <b>IG Лайки плавные</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"❤️ Количество: <b>{quantity}</b>\n"
         f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
         f"📌 Статус: <b>new</b>"
     )
