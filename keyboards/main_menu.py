@@ -148,7 +148,7 @@ def tg_premium_services_kb() -> InlineKeyboardMarkup:
 def telegram_services_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Telegram комментарии / опросы", callback_data="tg_comments_polls")],
+            [InlineKeyboardButton(text="💬 Telegram комментарии", callback_data="tg_comments_polls")],
             [InlineKeyboardButton(text="🇷🇺 Telegram русские подписчики", callback_data="tg_ru_subs")],
             [InlineKeyboardButton(text="👥 Telegram подписчики provider", callback_data="tg_provider_subs")],
             [InlineKeyboardButton(text="👁 Telegram просмотры provider", callback_data="tg_provider_views")],
@@ -266,6 +266,23 @@ def tg_comments_confirm_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tg_comments_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
+def tg_ru_subs_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tg_ru_subs_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_telegram")],
+        ]
+    )
+
+
+def tg_ru_subs_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tg_ru_subs_confirm")],
             [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
         ]
     )
