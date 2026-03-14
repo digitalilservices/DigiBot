@@ -321,3 +321,20 @@ def tg_provider_views_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def tg_provider_reactions_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tg_provider_reactions_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_telegram")],
+        ]
+    )
+
+
+def tg_provider_reactions_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tg_provider_reactions_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
