@@ -153,6 +153,21 @@ class Database:
         )
         """)
 
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS promotion_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            username TEXT,
+            service_code TEXT NOT NULL,
+            service_name TEXT NOT NULL,
+            link TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            price_usdt REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'new',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """)
+
         # ---------------- NEW: WALLET/PLANS (MIGRATIONS) ----------------
         # users: add usdt balance + plan + vip_until + daily counters
         # --- NEW STATUS SYSTEM (Novichok / Active)
@@ -2072,3 +2087,61 @@ class Database:
         """, (turnover_usdt, invoices_created, payments_count, users_count, conversion_pct))
         conn.commit()
         conn.close()
+
+    def create_promotion_order(
+        self,
+        user_id: int,
+        username: str,
+        service_code: str,
+        service_name: str,
+        link: str,
+        quantity: int,
+        price_usdt: float,
+    ) -> int:
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO promotion_orders
+            (user_id, username, service_code, service_name, link, quantity, price_usdt, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'))
+        """, (
+            int(user_id),
+            str(username or ""),
+            str(service_code),
+            str(service_name),
+            str(link),
+            int(quantity),
+            float(price_usdt),
+        ))
+        order_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return int(order_id)
+
+    def get_promotion_order(self, order_id: int):
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM promotion_orders WHERE id=?", (int(order_id),))
+        row = cur.fetchone()
+        conn.close()
+        return row
+
+    def set_promotion_order_status(self, order_id: int, status: str) -> None:
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("UPDATE promotion_orders SET status=? WHERE id=?", (str(status), int(order_id)))
+        conn.commit()
+        conn.close()
+
+    def add_usdt_balance(self, tg_id: int, amount: float) -> bool:
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE users
+            SET usdt_balance = COALESCE(usdt_balance, 0) + ?
+            WHERE tg_id = ?
+        """, (float(amount), int(tg_id)))
+        changed = cur.rowcount
+        conn.commit()
+        conn.close()
+        return changed > 0

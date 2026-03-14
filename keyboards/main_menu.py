@@ -133,4 +133,45 @@ def promotion_platforms_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def tg_premium_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📝 TG Онлайн премиум подписчики", callback_data="tp_online_subs")],
+            [InlineKeyboardButton(text="💬 Telegram Премиум комментарии", callback_data="tp_comments")],
+            [InlineKeyboardButton(text="🎯 Telegram Премиум таргет. подписчики", callback_data="tp_target_subs")],
+            [InlineKeyboardButton(text="👁 Telegram Премиум таргет. просмотры", callback_data="tp_target_views")],
+            [InlineKeyboardButton(text="🇷🇺 Telegram Русские Премиум онлайн подписчики", callback_data="tp_ru_online_subs")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
+        ]
+    )
+
+
+def tp_online_subs_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tp_online_subs_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_tg_premium")],
+        ]
+    )
+
+
+def tp_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tp_online_subs_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
+
+def promo_order_admin_kb(order_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Выполнено", callback_data=f"promo_done:{order_id}"),
+                InlineKeyboardButton(text="❌ Отклонить", callback_data=f"promo_reject:{order_id}"),
+            ]
+        ]
+    )
+
 

@@ -9,6 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher, BaseMiddleware
 from handlers.status import router as status_router
 from aiohttp import web
+from handlers.promotion import router as promotion_router
 
 from config import load_config
 from database import Database
@@ -332,6 +333,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(send_digi_router)
     dp.include_router(games.router)
+    dp.include_router(promotion_router)
 
 
     # ===== MINI APP SERVER (aiohttp) =====
