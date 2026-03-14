@@ -4,7 +4,6 @@ import logging
 from datetime import datetime, timedelta
 
 from handlers.statistics import router as statistics_router
-from handlers.mining import router as mining_router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher, BaseMiddleware
@@ -333,7 +332,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(send_digi_router)
     dp.include_router(games.router)
-    dp.include_router(mining_router)
+    
 
     # ===== MINI APP SERVER (aiohttp) =====
     # В config должны быть: WEBAPP_HOST, WEBAPP_PORT
