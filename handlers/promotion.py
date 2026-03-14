@@ -58,26 +58,26 @@ async def open_promotion(message: Message, premium: PremiumEmoji):
 
 @router.callback_query(F.data == "promo_back_platforms")
 async def promo_back_platforms(call: CallbackQuery, premium: PremiumEmoji):
-    await call.message.edit_text(
+    await premium.answer_html(
+        call.message,
         "📂 <b>Выберите платформу для продвижения</b>",
         reply_markup=promotion_platforms_kb(),
-        parse_mode="HTML"
     )
     await call.answer()
 
 
 @router.callback_query(F.data == "promo_tg_premium")
-async def promo_tg_premium(call: CallbackQuery):
-    await call.message.edit_text(
+async def promo_tg_premium(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
         "🌟 <b>Telegram Premium</b>\n\nВыберите нужную услугу:",
         reply_markup=tg_premium_services_kb(),
-        parse_mode="HTML"
     )
     await call.answer()
 
 
 @router.callback_query(F.data == "tp_online_subs")
-async def tp_online_subs_info(call: CallbackQuery):
+async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
     text = (
         "ℹ️ <b>Информация об услуге</b>\n\n"
         "📝 <b>TG Онлайн премиум подписчики</b>\n\n"
@@ -86,42 +86,42 @@ async def tp_online_subs_info(call: CallbackQuery):
         "Высокий онлайн 50-90% всегда.\n\n"
         "Гарантия 30 дней от списаний.\n\n"
         "⏱ <b>Среднее время завершения:</b> 6 мин.\n\n"
-        f"💸 <b>Цена за 1000:</b> {TP_ONLINE_SUBS_PRICE_PER_1000:.0f} USDT\n\n"
+        f"💰 <b>Цена за 1000:</b> {TP_ONLINE_SUBS_PRICE_PER_1000:.0f} USDT\n\n"
         f"📉 <b>Минимальное количество:</b> {TP_ONLINE_SUBS_MIN}\n"
         f"📈 <b>Максимальное количество:</b> {TP_ONLINE_SUBS_MAX}"
     )
-    await call.message.edit_text(
+    await premium.answer_html(
+        call.message,
         text,
         reply_markup=tp_online_subs_info_kb(),
-        parse_mode="HTML"
     )
     await call.answer()
 
 
 @router.callback_query(F.data == "tp_online_subs_order")
-async def tp_online_subs_order(call: CallbackQuery, state: FSMContext):
+async def tp_online_subs_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
     await state.clear()
     await state.set_state(PromotionStates.tp_online_subs_link)
 
-    await call.message.answer(
+    await premium.answer_html(
+        call.message,
         "🔗 <b>Отправьте ссылку</b> на Telegram канал/группу/пост для продвижения.\n\n"
         "Пример:\n"
         "<code>https://t.me/your_channel</code>",
-        parse_mode="HTML"
     )
     await call.answer()
 
 
 @router.message(PromotionStates.tp_online_subs_link)
-async def tp_online_subs_get_link(message: Message, state: FSMContext):
+async def tp_online_subs_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
     link = (message.text or "").strip()
 
     if not _is_valid_tg_link(link):
-        await message.answer(
+        await premium.answer_html(
+            message,
             "❌ <b>Ссылка некорректна.</b>\n\n"
             "Отправьте ссылку в формате:\n"
             "<code>https://t.me/your_channel</code>",
-            parse_mode="HTML"
         )
         return
 
@@ -129,30 +129,41 @@ async def tp_online_subs_get_link(message: Message, state: FSMContext):
     await state.update_data(link=link)
     await state.set_state(PromotionStates.tp_online_subs_quantity)
 
-    await message.answer(
+    await premium.answer_html(
+        message,
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_ONLINE_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_ONLINE_SUBS_MAX}</b>",
-        parse_mode="HTML"
     )
 
 
 @router.message(PromotionStates.tp_online_subs_quantity)
-async def tp_online_subs_get_quantity(message: Message, state: FSMContext, db: Database):
+async def tp_online_subs_get_quantity(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    premium: PremiumEmoji,
+):
     raw = (message.text or "").strip()
 
     if not raw.isdigit():
-        await message.answer("❌ Введите количество цифрами.")
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
         return
 
     quantity = int(raw)
 
     if quantity < TP_ONLINE_SUBS_MIN:
-        await message.answer(f"❌ Минимальное количество: <b>{TP_ONLINE_SUBS_MIN}</b>", parse_mode="HTML")
+        await premium.answer_html(
+            message,
+            f"❌ Минимальное количество: <b>{TP_ONLINE_SUBS_MIN}</b>",
+        )
         return
 
     if quantity > TP_ONLINE_SUBS_MAX:
-        await message.answer(f"❌ Максимальное количество: <b>{TP_ONLINE_SUBS_MAX}</b>", parse_mode="HTML")
+        await premium.answer_html(
+            message,
+            f"❌ Максимальное количество: <b>{TP_ONLINE_SUBS_MAX}</b>",
+        )
         return
 
     data = await state.get_data()
@@ -173,25 +184,32 @@ async def tp_online_subs_get_quantity(message: Message, state: FSMContext, db: D
         f"💰 Ваш баланс: <b>{balance:.2f} USDT</b>"
     )
 
-    await message.answer(
+    await premium.answer_html(
+        message,
         text,
         reply_markup=tp_confirm_kb(),
-        parse_mode="HTML"
     )
 
 
 @router.callback_query(F.data == "tp_cancel_order")
-async def tp_cancel_order(call: CallbackQuery, state: FSMContext):
+async def tp_cancel_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
     await state.clear()
-    await call.message.answer(
+    await premium.answer_html(
+        call.message,
         "❌ Заказ отменён.",
-        reply_markup=tg_premium_services_kb()
+        reply_markup=tg_premium_services_kb(),
     )
     await call.answer()
 
 
 @router.callback_query(F.data == "tp_online_subs_confirm")
-async def tp_online_subs_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg):
+async def tp_online_subs_confirm(
+    call: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    cfg,
+    premium: PremiumEmoji,
+):
     data = await state.get_data()
     if not data:
         await call.answer("Данные заказа потеряны", show_alert=True)
@@ -203,7 +221,10 @@ async def tp_online_subs_confirm(call: CallbackQuery, state: FSMContext, db: Dat
 
     user = db.get_user(call.from_user.id)
     if not user:
-        await call.message.answer("❌ Пользователь не найден в базе.")
+        await premium.answer_html(
+            call.message,
+            "❌ Пользователь не найден в базе.",
+        )
         await call.answer()
         return
 
@@ -211,11 +232,11 @@ async def tp_online_subs_confirm(call: CallbackQuery, state: FSMContext, db: Dat
     if not ok:
         actual_user = db.get_user(call.from_user.id)
         balance = float(actual_user["usdt_balance"] or 0.0) if actual_user else 0.0
-        await call.message.answer(
+        await premium.answer_html(
+            call.message,
             "❌ <b>Недостаточно USDT на балансе.</b>\n\n"
             f"Нужно: <b>{price:.2f} USDT</b>\n"
             f"У вас: <b>{balance:.2f} USDT</b>",
-            parse_mode="HTML"
         )
         await call.answer()
         return
@@ -248,25 +269,25 @@ async def tp_online_subs_confirm(call: CallbackQuery, state: FSMContext, db: Dat
             cfg.ADMIN_ID,
             admin_text,
             parse_mode="HTML",
-            reply_markup=promo_order_admin_kb(order_id)
+            reply_markup=promo_order_admin_kb(order_id),
         )
     except Exception:
         pass
 
     await state.clear()
 
-    await call.message.answer(
+    await premium.answer_html(
+        call.message,
         "✅ <b>Заявка создана</b>\n\n"
         f"🆔 Номер заказа: <b>#{order_id}</b>\n"
         "Ваша заявка отправлена администратору.\n"
         "Средства списаны с USDT баланса.",
-        parse_mode="HTML"
     )
     await call.answer()
 
 
 @router.callback_query(F.data.startswith("promo_done:"))
-async def promo_done(call: CallbackQuery, db: Database, cfg):
+async def promo_done(call: CallbackQuery, db: Database, cfg, premium: PremiumEmoji):
     if call.from_user.id != int(cfg.ADMIN_ID):
         await call.answer("Нет доступа", show_alert=True)
         return
@@ -288,20 +309,21 @@ async def promo_done(call: CallbackQuery, db: Database, cfg):
         await call.bot.send_message(
             order["user_id"],
             "✅ <b>Ваше задание успешно выполнено.</b>\n\nПроверяйте результат.",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
     except Exception:
         pass
 
     await call.message.edit_reply_markup(reply_markup=None)
-    await call.message.answer(
-        f"✅ Заявка #{order_id} отмечена как выполненная."
+    await premium.answer_html(
+        call.message,
+        f"✅ Заявка <b>#{order_id}</b> отмечена как выполненная.",
     )
     await call.answer("Готово")
 
 
 @router.callback_query(F.data.startswith("promo_reject:"))
-async def promo_reject(call: CallbackQuery, db: Database, cfg):
+async def promo_reject(call: CallbackQuery, db: Database, cfg, premium: PremiumEmoji):
     if call.from_user.id != int(cfg.ADMIN_ID):
         await call.answer("Нет доступа", show_alert=True)
         return
@@ -326,13 +348,14 @@ async def promo_reject(call: CallbackQuery, db: Database, cfg):
             "❌ <b>Ваше задание отклонено</b>\n\n"
             "Причина: проблема с продвижением.\n"
             "Сумма возвращена на ваш баланс.",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
     except Exception:
         pass
 
     await call.message.edit_reply_markup(reply_markup=None)
-    await call.message.answer(
-        f"❌ Заявка #{order_id} отклонена. Деньги возвращены пользователю."
+    await premium.answer_html(
+        call.message,
+        f"❌ Заявка <b>#{order_id}</b> отклонена. Деньги возвращены пользователю.",
     )
     await call.answer("Отклонено")
