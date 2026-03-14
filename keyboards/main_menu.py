@@ -367,3 +367,20 @@ def ig_stories_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def ig_comments_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="ig_comments_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_instagram")],
+        ]
+    )
+
+
+def ig_comments_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="ig_comments_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
