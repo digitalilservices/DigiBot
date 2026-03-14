@@ -28,6 +28,8 @@ from keyboards.main_menu import (
     tg_ru_subs_confirm_kb,
     tg_provider_subs_info_kb,
     tg_provider_subs_confirm_kb,
+    tg_provider_views_info_kb,
+    tg_provider_views_confirm_kb,
 )
 
 router = Router()
@@ -64,6 +66,10 @@ TG_PROVIDER_SUBS_PRICE_PER_1000 = 6.0
 TG_PROVIDER_SUBS_MIN = 10
 TG_PROVIDER_SUBS_MAX = 240000
 
+TG_PROVIDER_VIEWS_PRICE_PER_1000 = 0.20
+TG_PROVIDER_VIEWS_MIN = 10
+TG_PROVIDER_VIEWS_MAX = 25000
+
 
 class PromotionStates(StatesGroup):
     tp_online_subs_link = State()
@@ -89,6 +95,9 @@ class PromotionStates(StatesGroup):
 
     tg_provider_subs_link = State()
     tg_provider_subs_quantity = State()
+
+    tg_provider_views_link = State()
+    tg_provider_views_quantity = State()
 
 
 def _is_valid_tg_link(link: str) -> bool:
@@ -130,6 +139,9 @@ def _calc_tg_ru_subs_price(quantity: int) -> float:
 
 def _calc_tg_provider_subs_price(quantity: int) -> float:
     return round((quantity / 1000) * TG_PROVIDER_SUBS_PRICE_PER_1000, 2)
+
+def _calc_tg_provider_views_price(quantity: int) -> float:
+    return round((quantity / 1000) * TG_PROVIDER_VIEWS_PRICE_PER_1000, 2)
 
 
 @router.message(F.text == "🚀 Продвижение")
@@ -188,6 +200,27 @@ async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         text,
         reply_markup=tp_online_subs_info_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tg_provider_views")
+async def tg_provider_views_info(call: CallbackQuery, premium: PremiumEmoji):
+    text = (
+        "ℹ️ <b>Информация об услуге</b>\n\n"
+        "📝 <b>TG 🔥 Моментальные просмотры</b>\n\n"
+        "Быстрый старт.\n\n"
+        "Скорость до 20k в час.\n\n"
+        "Просмотры из разных стран от реальных аккаунтов.\n\n"
+        "Нужна ссылка на пост, например <code>https://t.me/PremiumRussia/646</code>\n\n"
+        "⏱ <b>Среднее время завершения:</b> 5 мин.\n\n"
+        f"💸 <b>Цена за 1000:</b> {TG_PROVIDER_VIEWS_PRICE_PER_1000:.2f} USDT\n\n"
+        f"📉 <b>Минимальное количество:</b> {TG_PROVIDER_VIEWS_MIN}\n"
+        f"📈 <b>Максимальное количество:</b> {TG_PROVIDER_VIEWS_MAX}"
+    )
+    await premium.answer_html(
+        call.message,
+        text,
+        reply_markup=tg_provider_views_info_kb(),
     )
     await call.answer()
 
@@ -356,6 +389,19 @@ async def tp_online_subs_order(call: CallbackQuery, state: FSMContext, premium: 
     )
     await call.answer()
 
+@router.callback_query(F.data == "tg_provider_views_order")
+async def tg_provider_views_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
+    await state.clear()
+    await state.set_state(PromotionStates.tg_provider_views_link)
+
+    await premium.answer_html(
+        call.message,
+        "🔗 <b>Отправьте ссылку на пост</b> для просмотров.\n\n"
+        "Пример:\n"
+        "<code>https://t.me/channel/123</code>",
+    )
+    await call.answer()
+
 @router.callback_query(F.data == "tg_provider_subs_order")
 async def tg_provider_subs_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
     await state.clear()
@@ -471,6 +517,30 @@ async def tp_online_subs_get_link(message: Message, state: FSMContext, premium: 
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_ONLINE_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_ONLINE_SUBS_MAX}</b>",
+    )
+
+@router.message(PromotionStates.tg_provider_views_link)
+async def tg_provider_views_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
+    link = (message.text or "").strip()
+
+    if not _is_valid_tg_link(link):
+        await premium.answer_html(
+            message,
+            "❌ <b>Ссылка некорректна.</b>\n\n"
+            "Отправьте ссылку в формате:\n"
+            "<code>https://t.me/channel/123</code>",
+        )
+        return
+
+    link = _normalize_link(link)
+    await state.update_data(link=link)
+    await state.set_state(PromotionStates.tg_provider_views_quantity)
+
+    await premium.answer_html(
+        message,
+        f"📥 <b>Теперь введите количество просмотров</b>\n\n"
+        f"Минимум: <b>{TG_PROVIDER_VIEWS_MIN}</b>\n"
+        f"Максимум: <b>{TG_PROVIDER_VIEWS_MAX}</b>",
     )
 
 @router.message(PromotionStates.tg_comments_link)
@@ -692,6 +762,59 @@ async def tp_target_views_get_quantity(
         message,
         text,
         reply_markup=tp_target_views_confirm_kb(),
+    )
+
+@router.message(PromotionStates.tg_provider_views_quantity)
+async def tg_provider_views_get_quantity(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    premium: PremiumEmoji,
+):
+    raw = (message.text or "").strip()
+
+    if not raw.isdigit():
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
+        return
+
+    quantity = int(raw)
+
+    if quantity < TG_PROVIDER_VIEWS_MIN:
+        await premium.answer_html(
+            message,
+            f"❌ Минимальное количество: <b>{TG_PROVIDER_VIEWS_MIN}</b>",
+        )
+        return
+
+    if quantity > TG_PROVIDER_VIEWS_MAX:
+        await premium.answer_html(
+            message,
+            f"❌ Максимальное количество: <b>{TG_PROVIDER_VIEWS_MAX}</b>",
+        )
+        return
+
+    data = await state.get_data()
+    link = data["link"]
+    price = _calc_tg_provider_views_price(quantity)
+
+    user = db.get_user(message.from_user.id)
+    balance = float(user["usdt_balance"] or 0.0) if user else 0.0
+
+    await state.update_data(quantity=quantity, price=price)
+
+    text = (
+        "📦 <b>Подтверждение заказа</b>\n\n"
+        "Услуга: <b>TG Моментальные просмотры</b>\n"
+        f"🔗 Ссылка на пост: <code>{link}</code>\n"
+        f"👁 Количество: <b>{quantity}</b>\n"
+        f"💸 Сумма: <b>{price:.2f} USDT</b>\n"
+        f"💰 Ваш баланс: <b>{balance:.2f} USDT</b>"
+    )
+
+    await premium.answer_html(
+        message,
+        text,
+        reply_markup=tg_provider_views_confirm_kb(),
     )
 
 @router.message(PromotionStates.tg_provider_subs_quantity)
@@ -1135,6 +1258,89 @@ async def tp_online_subs_confirm(
         f"🛍 Услуга: <b>TG Онлайн премиум подписчики</b>\n"
         f"🔗 Ссылка: <code>{link}</code>\n"
         f"👥 Количество: <b>{quantity}</b>\n"
+        f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
+        f"📌 Статус: <b>new</b>"
+    )
+
+    try:
+        await call.bot.send_message(
+            cfg.ADMIN_ID,
+            admin_text,
+            parse_mode="HTML",
+            reply_markup=promo_order_admin_kb(order_id),
+        )
+    except Exception:
+        pass
+
+    await state.clear()
+
+    await premium.answer_html(
+        call.message,
+        "✅ <b>Заявка создана</b>\n\n"
+        f"🆔 Номер заказа: <b>#{order_id}</b>\n"
+        "Ваша заявка отправлена администратору.\n"
+        "Средства списаны с USDT баланса.",
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tg_provider_views_confirm")
+async def tg_provider_views_confirm(
+    call: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    cfg,
+    premium: PremiumEmoji,
+):
+    data = await state.get_data()
+    if not data:
+        await call.answer("Данные заказа потеряны", show_alert=True)
+        return
+
+    link = data["link"]
+    quantity = int(data["quantity"])
+    price = float(data["price"])
+
+    user = db.get_user(call.from_user.id)
+    if not user:
+        await premium.answer_html(
+            call.message,
+            "❌ Пользователь не найден в базе.",
+        )
+        await call.answer()
+        return
+
+    ok = db.subtract_ref_balance(call.from_user.id, price)
+    if not ok:
+        actual_user = db.get_user(call.from_user.id)
+        balance = float(actual_user["usdt_balance"] or 0.0) if actual_user else 0.0
+        await premium.answer_html(
+            call.message,
+            "❌ <b>Недостаточно USDT на балансе.</b>\n\n"
+            f"Нужно: <b>{price:.2f} USDT</b>\n"
+            f"У вас: <b>{balance:.2f} USDT</b>",
+        )
+        await call.answer()
+        return
+
+    order_id = db.create_promotion_order(
+        user_id=call.from_user.id,
+        username=call.from_user.username or "",
+        service_code="tg_provider_views",
+        service_name="TG Моментальные просмотры",
+        link=link,
+        quantity=quantity,
+        price_usdt=price,
+    )
+
+    admin_text = (
+        "📥 <b>Новая заявка на продвижение</b>\n\n"
+        f"🆔 Заказ: <b>#{order_id}</b>\n"
+        f"👤 Пользователь: <b>{call.from_user.full_name}</b>\n"
+        f"🔹 Username: @{call.from_user.username or 'без username'}\n"
+        f"🆔 TG ID: <code>{call.from_user.id}</code>\n\n"
+        f"🛍 Услуга: <b>TG Моментальные просмотры</b>\n"
+        f"🔗 Ссылка на пост: <code>{link}</code>\n"
+        f"👁 Количество: <b>{quantity}</b>\n"
         f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
         f"📌 Статус: <b>new</b>"
     )
