@@ -21,6 +21,7 @@ from keyboards.main_menu import (
     tp_target_views_confirm_kb,
     tp_ru_online_subs_info_kb,
     tp_ru_online_subs_confirm_kb,
+    telegram_services_kb,
 )
 
 router = Router()
@@ -120,6 +121,15 @@ async def promo_tg_premium(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         "🌟 <b>Telegram Premium</b>\n\nВыберите нужную услугу:",
         reply_markup=tg_premium_services_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "promo_telegram")
+async def promo_telegram(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "✈️ <b>Telegram</b>\n\nВыберите нужную услугу:",
+        reply_markup=telegram_services_kb(),
     )
     await call.answer()
 
@@ -1136,7 +1146,7 @@ async def promo_done(call: CallbackQuery, db: Database, cfg, premium: PremiumEmo
     try:
         await call.bot.send_message(
             order["user_id"],
-            "✅ <b>Ваше задание успешно выполнено.</b>\n\nПроверяйте результат.",
+            "✅ <b>Ваша заявка принята. Ожидайте выполнения.</b>\n\nЕсли вас что-то не устроит, напишите администратору: @illy228",
             parse_mode="HTML",
         )
     except Exception:

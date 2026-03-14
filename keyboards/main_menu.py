@@ -145,6 +145,18 @@ def tg_premium_services_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def telegram_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Telegram комментарии / опросы", callback_data="tg_comments_polls")],
+            [InlineKeyboardButton(text="🇷🇺 Telegram русские подписчики", callback_data="tg_ru_subs")],
+            [InlineKeyboardButton(text="👥 Telegram подписчики provider", callback_data="tg_provider_subs")],
+            [InlineKeyboardButton(text="👁 Telegram просмотры provider", callback_data="tg_provider_views")],
+            [InlineKeyboardButton(text="❤️ Telegram реакции provider", callback_data="tg_provider_reactions")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
+        ]
+    )
+
 
 def tp_online_subs_info_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
