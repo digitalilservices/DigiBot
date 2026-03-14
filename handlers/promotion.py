@@ -32,6 +32,7 @@ from keyboards.main_menu import (
     tg_provider_views_confirm_kb,
     tg_provider_reactions_info_kb,
     tg_provider_reactions_confirm_kb,
+    instagram_services_kb,
 )
 
 router = Router()
@@ -190,6 +191,15 @@ async def promo_telegram(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         "✈️ <b>Telegram</b>\n\nВыберите нужную услугу:",
         reply_markup=telegram_services_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "promo_instagram")
+async def promo_instagram(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "📸 <b>Instagram</b>\n\nВыберите нужную услугу:",
+        reply_markup=instagram_services_kb(),
     )
     await call.answer()
 

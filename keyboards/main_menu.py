@@ -133,6 +133,18 @@ def promotion_platforms_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def instagram_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📖 Instagram Истории", callback_data="ig_stories")],
+            [InlineKeyboardButton(text="💬 Instagram Комментарии", callback_data="ig_comments")],
+            [InlineKeyboardButton(text="❤️ Instagram лайки provider", callback_data="ig_provider_likes")],
+            [InlineKeyboardButton(text="🎯 Instagram подписчики таргет", callback_data="ig_target_subs")],
+            [InlineKeyboardButton(text="👥 Instagram подписчики provider", callback_data="ig_provider_subs")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
+        ]
+    )
+
 def tg_premium_services_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
