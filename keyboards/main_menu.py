@@ -287,3 +287,20 @@ def tg_ru_subs_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def tg_provider_subs_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tg_provider_subs_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_telegram")],
+        ]
+    )
+
+
+def tg_provider_subs_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tg_provider_subs_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
