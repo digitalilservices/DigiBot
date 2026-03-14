@@ -174,4 +174,20 @@ def promo_order_admin_kb(order_id: int) -> InlineKeyboardMarkup:
         ]
     )
 
+def tp_comments_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tp_comments_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_tg_premium")],
+        ]
+    )
+
+def tp_comments_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tp_comments_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
 
