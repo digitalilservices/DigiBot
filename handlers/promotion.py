@@ -44,6 +44,8 @@ from keyboards.main_menu import (
     ig_provider_subs_info_kb,
     ig_provider_subs_confirm_kb,
     tiktok_services_kb,
+    tt_live_info_kb,
+    tt_live_confirm_kb,
 )
 
 router = Router()
@@ -108,6 +110,10 @@ IG_PROVIDER_SUBS_PRICE_PER_1000 = 26000.0
 IG_PROVIDER_SUBS_MIN = 1
 IG_PROVIDER_SUBS_MAX = 16
 
+TT_LIVE_PRICE_PER_1000 = 45.0
+TT_LIVE_MIN = 50
+TT_LIVE_MAX = 50000
+
 
 class PromotionStates(StatesGroup):
     tp_online_subs_link = State()
@@ -154,6 +160,9 @@ class PromotionStates(StatesGroup):
 
     ig_provider_subs_link = State()
     ig_provider_subs_quantity = State()
+
+    tt_live_link = State()
+    tt_live_quantity = State()
 
 
 def _is_valid_tg_link(link: str) -> bool:
@@ -222,6 +231,9 @@ def _calc_ig_target_subs_price(quantity: int) -> float:
 
 def _calc_ig_provider_subs_price(quantity: int) -> float:
     return round((quantity / 1000) * IG_PROVIDER_SUBS_PRICE_PER_1000, 2)
+
+def _calc_tt_live_price(quantity: int) -> float:
+    return round((quantity / 1000) * TT_LIVE_PRICE_PER_1000, 2)
 
 
 @router.message(F.text == "🚀 Продвижение")
@@ -298,6 +310,28 @@ async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         text,
         reply_markup=tp_online_subs_info_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tt_live")
+async def tt_live_info(call: CallbackQuery, premium: PremiumEmoji):
+
+    text = (
+        "ℹ️ <b>Информация об услуге</b>\n\n"
+        "📝 <b>TT Зрители в Прямой эфир (90 мин.)</b>\n\n"
+        "Старт 0-5 мин.\n"
+        "Стабильные.\n"
+        "Вводить ссылку на аккаунт или на сам эфир.\n\n"
+        "⏱ <b>Среднее время завершения:</b> 24 ч. 53 мин.\n\n"
+        f"💸 <b>Цена за 1000:</b> {TT_LIVE_PRICE_PER_1000:.0f} USDT\n\n"
+        f"📉 <b>Минимальное количество:</b> {TT_LIVE_MIN}\n"
+        f"📈 <b>Максимальное количество:</b> {TT_LIVE_MAX}"
+    )
+
+    await premium.answer_html(
+        call.message,
+        text,
+        reply_markup=tt_live_info_kb()
     )
     await call.answer()
 
@@ -618,6 +652,20 @@ async def tp_online_subs_order(call: CallbackQuery, state: FSMContext, premium: 
     )
     await call.answer()
 
+@router.callback_query(F.data == "tt_live_order")
+async def tt_live_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
+    await state.clear()
+    await state.set_state(PromotionStates.tt_live_link)
+
+    await premium.answer_html(
+        call.message,
+        "🔗 <b>Отправьте ссылку на TikTok аккаунт или эфир</b>\n\n"
+        "Пример:\n"
+        "<code>https://www.tiktok.com/@username</code>"
+    )
+
+    await call.answer()
+
 @router.callback_query(F.data == "ig_target_subs_order")
 async def ig_target_subs_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
     await state.clear()
@@ -825,6 +873,28 @@ async def tp_online_subs_get_link(message: Message, state: FSMContext, premium: 
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_ONLINE_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_ONLINE_SUBS_MAX}</b>",
+    )
+
+@router.message(PromotionStates.tt_live_link)
+async def tt_live_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
+    link = (message.text or "").strip()
+
+    if not link.startswith("http"):
+        await premium.answer_html(
+            message,
+            "❌ <b>Ссылка некорректна</b>\n\n"
+            "Отправьте ссылку на TikTok аккаунт или эфир."
+        )
+        return
+
+    await state.update_data(link=link)
+    await state.set_state(PromotionStates.tt_live_quantity)
+
+    await premium.answer_html(
+        message,
+        f"📥 <b>Введите количество зрителей</b>\n\n"
+        f"Минимум: <b>{TT_LIVE_MIN}</b>\n"
+        f"Максимум: <b>{TT_LIVE_MAX}</b>"
     )
 
 
@@ -1632,6 +1702,50 @@ async def tg_provider_subs_get_quantity(
         reply_markup=tg_provider_subs_confirm_kb(),
     )
 
+@router.message(PromotionStates.tt_live_quantity)
+async def tt_live_get_quantity(message: Message, state: FSMContext, db: Database, premium: PremiumEmoji):
+
+    raw = (message.text or "").strip()
+
+    if not raw.isdigit():
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
+        return
+
+    quantity = int(raw)
+
+    if quantity < TT_LIVE_MIN:
+        await premium.answer_html(message, f"❌ Минимальное количество: <b>{TT_LIVE_MIN}</b>")
+        return
+
+    if quantity > TT_LIVE_MAX:
+        await premium.answer_html(message, f"❌ Максимальное количество: <b>{TT_LIVE_MAX}</b>")
+        return
+
+    data = await state.get_data()
+    link = data["link"]
+
+    price = _calc_tt_live_price(quantity)
+
+    user = db.get_user(message.from_user.id)
+    balance = float(user["usdt_balance"] or 0.0) if user else 0.0
+
+    await state.update_data(quantity=quantity, price=price)
+
+    text = (
+        "📦 <b>Подтверждение заказа</b>\n\n"
+        "Услуга: <b>TikTok Зрители в прямой эфир</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"👥 Количество: <b>{quantity}</b>\n"
+        f"💸 Сумма: <b>{price:.2f} USDT</b>\n"
+        f"💰 Ваш баланс: <b>{balance:.2f} USDT</b>"
+    )
+
+    await premium.answer_html(
+        message,
+        text,
+        reply_markup=tt_live_confirm_kb()
+    )
+
 @router.message(PromotionStates.tg_ru_subs_quantity)
 async def tg_ru_subs_get_quantity(
     message: Message,
@@ -2043,6 +2157,68 @@ async def tp_online_subs_confirm(
         "Ваша заявка отправлена администратору.\n"
         "Средства списаны с USDT баланса.",
     )
+    await call.answer()
+
+@router.callback_query(F.data == "tt_live_confirm")
+async def tt_live_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg, premium: PremiumEmoji):
+
+    data = await state.get_data()
+
+    link = data["link"]
+    quantity = int(data["quantity"])
+    price = float(data["price"])
+
+    ok = db.subtract_ref_balance(call.from_user.id, price)
+
+    if not ok:
+
+        user = db.get_user(call.from_user.id)
+        balance = float(user["usdt_balance"] or 0)
+
+        await premium.answer_html(
+            call.message,
+            f"❌ <b>Недостаточно средств</b>\n\n"
+            f"Нужно: <b>{price:.2f} USDT</b>\n"
+            f"Баланс: <b>{balance:.2f} USDT</b>"
+        )
+        return
+
+    order_id = db.create_promotion_order(
+        user_id=call.from_user.id,
+        username=call.from_user.username or "",
+        service_code="tt_live",
+        service_name="TikTok Прямой эфир",
+        link=link,
+        quantity=quantity,
+        price_usdt=price,
+    )
+
+    admin_text = (
+        "📥 <b>Новая заявка</b>\n\n"
+        f"🆔 Заказ #{order_id}\n"
+        f"👤 {call.from_user.full_name}\n"
+        f"🆔 <code>{call.from_user.id}</code>\n\n"
+        f"🛍 TikTok Прямой эфир\n"
+        f"🔗 <code>{link}</code>\n"
+        f"👥 {quantity}\n"
+        f"💸 {price:.2f} USDT"
+    )
+
+    await call.bot.send_message(
+        cfg.ADMIN_ID,
+        admin_text,
+        parse_mode="HTML",
+        reply_markup=promo_order_admin_kb(order_id)
+    )
+
+    await state.clear()
+
+    await premium.answer_html(
+        call.message,
+        f"✅ <b>Заявка создана</b>\n\n"
+        f"Номер заказа: <b>#{order_id}</b>"
+    )
+
     await call.answer()
 
 @router.callback_query(F.data == "ig_provider_subs_confirm")
