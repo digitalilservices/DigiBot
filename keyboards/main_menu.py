@@ -126,10 +126,31 @@ def promotion_platforms_kb() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="📺 YouTube", callback_data="promo_youtube"),
+                InlineKeyboardButton(text="🌎 Сайты", callback_data="promo_site"),
             ],
             [
                 InlineKeyboardButton(text="🏠 В меню", callback_data="go_menu"),
             ]
+        ]
+    )
+
+def site_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👥 Web Трафик", callback_data="site_subs")],
+            [InlineKeyboardButton(text="🇷🇺 Web Трафик (Россия)", callback_data="site_shorts_views")],
+            [InlineKeyboardButton(text="🇺🇸 Web Трафик (США)", callback_data="site_shorts_likes")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
+        ]
+    )
+
+def youtube_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👥 YouTube подписчики", callback_data="yt_subs")],
+            [InlineKeyboardButton(text="🎬 YouTube Shorts просмотры", callback_data="yt_shorts_views")],
+            [InlineKeyboardButton(text="❤️ YouTube Shorts лайки", callback_data="yt_shorts_likes")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
         ]
     )
 

@@ -52,6 +52,8 @@ from keyboards.main_menu import (
     tt_likes_confirm_kb,
     tt_views_info_kb,
     tt_views_confirm_kb,
+    youtube_services_kb,
+    site_services_kb,
 )
 
 router = Router()
@@ -325,6 +327,24 @@ async def promo_tiktok(call: CallbackQuery, premium: PremiumEmoji):
     )
     await call.answer()
 
+@router.callback_query(F.data == "promo_youtube")
+async def promo_youtube(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "📺 <b>YouTube</b>\n\nВыберите нужную услугу:",
+        reply_markup=youtube_services_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "promo_site")
+async def promo_site(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "🌎 <b>Сайты</b>\n\nВыберите нужную услугу:",
+        reply_markup=site_services_kb(),
+    )
+    await call.answer()
+
 
 @router.callback_query(F.data == "tp_online_subs")
 async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
@@ -344,6 +364,35 @@ async def tp_online_subs_info(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         text,
         reply_markup=tp_online_subs_info_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "site_subs")
+async def site_subs_stub(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "👥 <b>Web Трафик</b>\n\nСкоро",
+        reply_markup=youtube_services_kb(),
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data == "site_shorts_views")
+async def site_shorts_views_stub(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "🇷🇺 <b>Web Трафик (Россия)</b>\n\nСкоро",
+        reply_markup=youtube_services_kb(),
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data == "site_shorts_likes")
+async def site_shorts_likes_stub(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "️🇺🇸 <b>Web Трафик (США)</b>\n\nСкоро",
+        reply_markup=youtube_services_kb(),
     )
     await call.answer()
 
