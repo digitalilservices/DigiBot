@@ -497,3 +497,20 @@ def tt_likes_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def tt_views_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="tt_views_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_tiktok")],
+        ]
+    )
+
+
+def tt_views_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="tt_views_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
