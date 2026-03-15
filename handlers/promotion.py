@@ -372,7 +372,7 @@ async def site_subs_stub(call: CallbackQuery, premium: PremiumEmoji):
     await premium.answer_html(
         call.message,
         "👥 <b>Web Трафик</b>\n\nСкоро",
-        reply_markup=youtube_services_kb(),
+        reply_markup=site_services_kb(),
     )
     await call.answer()
 
@@ -382,7 +382,7 @@ async def site_shorts_views_stub(call: CallbackQuery, premium: PremiumEmoji):
     await premium.answer_html(
         call.message,
         "🇷🇺 <b>Web Трафик (Россия)</b>\n\nСкоро",
-        reply_markup=youtube_services_kb(),
+        reply_markup=site_services_kb(),
     )
     await call.answer()
 
@@ -392,7 +392,7 @@ async def site_shorts_likes_stub(call: CallbackQuery, premium: PremiumEmoji):
     await premium.answer_html(
         call.message,
         "️🇺🇸 <b>Web Трафик (США)</b>\n\nСкоро",
-        reply_markup=youtube_services_kb(),
+        reply_markup=site_services_kb(),
     )
     await call.answer()
 
