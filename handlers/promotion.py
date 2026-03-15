@@ -54,6 +54,8 @@ from keyboards.main_menu import (
     tt_views_confirm_kb,
     youtube_services_kb,
     site_services_kb,
+    yt_subs_info_kb,
+    yt_subs_confirm_kb,
 )
 
 router = Router()
@@ -134,6 +136,10 @@ TT_VIEWS_PRICE_PER_1000 = 0.66
 TT_VIEWS_MIN = 100
 TT_VIEWS_MAX = 100000000
 
+YT_SUBS_PRICE_PER_1000 = 170.0
+YT_SUBS_MIN = 50
+YT_SUBS_MAX = 40000
+
 
 class PromotionStates(StatesGroup):
     tp_online_subs_link = State()
@@ -192,6 +198,9 @@ class PromotionStates(StatesGroup):
 
     tt_views_link = State()
     tt_views_quantity = State()
+
+    yt_subs_link = State()
+    yt_subs_quantity = State()
 
 def _is_valid_tg_link(link: str) -> bool:
     link = (link or "").strip()
@@ -271,6 +280,9 @@ def _calc_tt_likes_price(quantity: int) -> float:
 
 def _calc_tt_views_price(quantity: int) -> float:
     return round((quantity / 1000) * TT_VIEWS_PRICE_PER_1000, 2)
+
+def _calc_yt_subs_price(quantity: int) -> float:
+    return round((quantity / 1000) * YT_SUBS_PRICE_PER_1000, 2)
 
 @router.message(F.text == "🚀 Продвижение")
 async def open_promotion(message: Message, premium: PremiumEmoji):
@@ -652,6 +664,30 @@ async def tg_provider_subs_info(call: CallbackQuery, premium: PremiumEmoji):
     )
     await call.answer()
 
+@router.callback_query(F.data == "yt_subs")
+async def yt_subs_info(call: CallbackQuery, premium: PremiumEmoji):
+    text = (
+        "ℹ️ <b>Информация об услуге</b>\n\n"
+        "📝 <b>YT 🇷🇺 Русские подписчики</b>\n\n"
+        "Старт 0-12 часов.\n\n"
+        "Скорость до 1000 в сутки.\n\n"
+        "Подписчики из России и СНГ.\n\n"
+        "Гарантия 60 дней.\n\n"
+        "Счётчик подписчиков должен быть обязательно открыт.\n\n"
+        "⏱ <b>Среднее время завершения:</b> 10 ч. 36 мин.\n\n"
+        f"💸 <b>Цена за 1000:</b> {YT_SUBS_PRICE_PER_1000:.0f} USDT\n\n"
+        f"📉 <b>Минимальное количество:</b> {YT_SUBS_MIN}\n"
+        f"📈 <b>Максимальное количество:</b> {YT_SUBS_MAX}"
+    )
+
+    await premium.answer_html(
+        call.message,
+        text,
+        reply_markup=yt_subs_info_kb()
+    )
+
+    await call.answer()
+
 @router.callback_query(F.data == "tg_comments_polls")
 async def tg_comments_info(call: CallbackQuery, premium: PremiumEmoji):
     text = (
@@ -803,6 +839,21 @@ async def tt_live_order(call: CallbackQuery, state: FSMContext, premium: Premium
         "🔗 <b>Отправьте ссылку на TikTok аккаунт или эфир</b>\n\n"
         "Пример:\n"
         "<code>https://www.tiktok.com/@username</code>"
+    )
+
+    await call.answer()
+
+@router.callback_query(F.data == "yt_subs_order")
+async def yt_subs_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
+
+    await state.clear()
+    await state.set_state(PromotionStates.yt_subs_link)
+
+    await premium.answer_html(
+        call.message,
+        "🔗 <b>Отправьте ссылку на YouTube канал</b>\n\n"
+        "Пример:\n"
+        "<code>https://youtube.com/@channel</code>"
     )
 
     await call.answer()
@@ -1052,6 +1103,29 @@ async def tp_online_subs_get_link(message: Message, state: FSMContext, premium: 
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_ONLINE_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_ONLINE_SUBS_MAX}</b>",
+    )
+
+@router.message(PromotionStates.yt_subs_link)
+async def yt_subs_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
+
+    link = (message.text or "").strip()
+
+    if not link.startswith("http"):
+        await premium.answer_html(
+            message,
+            "❌ <b>Ссылка некорректна</b>\n\n"
+            "Отправьте ссылку на YouTube канал."
+        )
+        return
+
+    await state.update_data(link=link)
+    await state.set_state(PromotionStates.yt_subs_quantity)
+
+    await premium.answer_html(
+        message,
+        f"📥 <b>Введите количество подписчиков</b>\n\n"
+        f"Минимум: <b>{YT_SUBS_MIN}</b>\n"
+        f"Максимум: <b>{YT_SUBS_MAX}</b>"
     )
 
 @router.message(PromotionStates.tt_provider_subs_link)
@@ -2097,6 +2171,50 @@ async def tg_comments_get_quantity(
         reply_markup=tg_comments_confirm_kb(),
     )
 
+@router.message(PromotionStates.yt_subs_quantity)
+async def yt_subs_get_quantity(message: Message, state: FSMContext, db: Database, premium: PremiumEmoji):
+
+    raw = (message.text or "").strip()
+
+    if not raw.isdigit():
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
+        return
+
+    quantity = int(raw)
+
+    if quantity < YT_SUBS_MIN:
+        await premium.answer_html(message, f"❌ Минимальное количество: <b>{YT_SUBS_MIN}</b>")
+        return
+
+    if quantity > YT_SUBS_MAX:
+        await premium.answer_html(message, f"❌ Максимальное количество: <b>{YT_SUBS_MAX}</b>")
+        return
+
+    data = await state.get_data()
+    link = data["link"]
+
+    price = _calc_yt_subs_price(quantity)
+
+    user = db.get_user(message.from_user.id)
+    balance = float(user["usdt_balance"] or 0.0)
+
+    await state.update_data(quantity=quantity, price=price)
+
+    text = (
+        "📦 <b>Подтверждение заказа</b>\n\n"
+        "Услуга: <b>YouTube подписчики</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"👥 Количество: <b>{quantity}</b>\n"
+        f"💸 Сумма: <b>{price:.2f} USDT</b>\n"
+        f"💰 Баланс: <b>{balance:.2f} USDT</b>"
+    )
+
+    await premium.answer_html(
+        message,
+        text,
+        reply_markup=yt_subs_confirm_kb()
+    )
+
 @router.message(PromotionStates.tp_ru_online_subs_quantity)
 async def tp_ru_online_subs_get_quantity(
     message: Message,
@@ -2561,6 +2679,68 @@ async def tp_online_subs_confirm(
         "Ваша заявка отправлена администратору.\n"
         "Средства списаны с USDT баланса.",
     )
+    await call.answer()
+
+@router.callback_query(F.data == "yt_subs_confirm")
+async def yt_subs_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg, premium: PremiumEmoji):
+
+    data = await state.get_data()
+
+    link = data["link"]
+    quantity = int(data["quantity"])
+    price = float(data["price"])
+
+    ok = db.subtract_ref_balance(call.from_user.id, price)
+
+    if not ok:
+
+        user = db.get_user(call.from_user.id)
+        balance = float(user["usdt_balance"] or 0)
+
+        await premium.answer_html(
+            call.message,
+            f"❌ <b>Недостаточно средств</b>\n\n"
+            f"Нужно: <b>{price:.2f} USDT</b>\n"
+            f"Баланс: <b>{balance:.2f} USDT</b>"
+        )
+        return
+
+    order_id = db.create_promotion_order(
+        user_id=call.from_user.id,
+        username=call.from_user.username or "",
+        service_code="yt_subs",
+        service_name="YouTube подписчики",
+        link=link,
+        quantity=quantity,
+        price_usdt=price,
+    )
+
+    admin_text = (
+        "📥 <b>Новая заявка</b>\n\n"
+        f"🆔 Заказ #{order_id}\n"
+        f"👤 {call.from_user.full_name}\n"
+        f"🆔 <code>{call.from_user.id}</code>\n\n"
+        f"🛍 YouTube подписчики\n"
+        f"🔗 <code>{link}</code>\n"
+        f"👥 {quantity}\n"
+        f"💸 {price:.2f} USDT"
+    )
+
+    await call.bot.send_message(
+        cfg.ADMIN_ID,
+        admin_text,
+        parse_mode="HTML",
+        reply_markup=promo_order_admin_kb(order_id)
+    )
+
+    await state.clear()
+
+    await premium.answer_html(
+        call.message,
+        f"✅ <b>Заявка создана</b>\n\n"
+        f"Номер заказа: <b>#{order_id}</b>"
+    )
+
     await call.answer()
 
 @router.callback_query(F.data == "tt_likes_confirm")

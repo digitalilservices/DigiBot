@@ -535,3 +535,20 @@ def tt_views_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def yt_subs_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="yt_subs_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_youtube")],
+        ]
+    )
+
+
+def yt_subs_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="yt_subs_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
