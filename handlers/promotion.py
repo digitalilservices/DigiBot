@@ -48,6 +48,8 @@ from keyboards.main_menu import (
     tt_live_confirm_kb,
     tt_provider_subs_info_kb,
     tt_provider_subs_confirm_kb,
+    tt_likes_info_kb,
+    tt_likes_confirm_kb,
 )
 
 router = Router()
@@ -120,6 +122,10 @@ TT_PROVIDER_SUBS_PRICE_PER_1000 = 28.0
 TT_PROVIDER_SUBS_MIN = 10
 TT_PROVIDER_SUBS_MAX = 50000
 
+TT_LIKES_PRICE_PER_1000 = 13.0
+TT_LIKES_MIN = 10
+TT_LIKES_MAX = 20000
+
 
 class PromotionStates(StatesGroup):
     tp_online_subs_link = State()
@@ -172,6 +178,11 @@ class PromotionStates(StatesGroup):
 
     tt_provider_subs_link = State()
     tt_provider_subs_quantity = State()
+
+    tt_likes_link = State()
+    tt_likes_quantity = State()
+
+
 
 def _is_valid_tg_link(link: str) -> bool:
     link = (link or "").strip()
@@ -246,6 +257,8 @@ def _calc_tt_live_price(quantity: int) -> float:
 def _calc_tt_provider_subs_price(quantity: int) -> float:
     return round((quantity / 1000) * TT_PROVIDER_SUBS_PRICE_PER_1000, 2)
 
+def _calc_tt_likes_price(quantity: int) -> float:
+    return round((quantity / 1000) * TT_LIKES_PRICE_PER_1000, 2)
 
 @router.message(F.text == "🚀 Продвижение")
 async def open_promotion(message: Message, premium: PremiumEmoji):
@@ -343,6 +356,24 @@ async def tt_live_info(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         text,
         reply_markup=tt_live_info_kb()
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tt_likes")
+async def tt_likes_info(call: CallbackQuery, premium: PremiumEmoji):
+    text = (
+        "ℹ️ <b>Информация об услуге</b>\n\n"
+        "📝 <b>TT ⭐ ♻️ Лайки живые (Ru)</b>\n\n"
+        "Быстрый старт. Лайки от живых пользователей из России и СНГ.\n\n"
+        "⏱ <b>Среднее время завершения:</b> 1 ч. 50 мин.\n\n"
+        f"💸 <b>Цена за 1000:</b> {TT_LIKES_PRICE_PER_1000:.0f} USDT\n\n"
+        f"📉 <b>Минимальное количество:</b> {TT_LIKES_MIN}\n"
+        f"📈 <b>Максимальное количество:</b> {TT_LIKES_MAX}"
+    )
+    await premium.answer_html(
+        call.message,
+        text,
+        reply_markup=tt_likes_info_kb(),
     )
     await call.answer()
 
@@ -708,6 +739,19 @@ async def tt_provider_subs_order(call: CallbackQuery, state: FSMContext, premium
         "🔗 <b>Отправьте ссылку на TikTok аккаунт</b>\n\n"
         "Пример:\n"
         "<code>https://www.tiktok.com/@username</code>",
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tt_likes_order")
+async def tt_likes_order(call: CallbackQuery, state: FSMContext, premium: PremiumEmoji):
+    await state.clear()
+    await state.set_state(PromotionStates.tt_likes_link)
+
+    await premium.answer_html(
+        call.message,
+        "🔗 <b>Отправьте ссылку на TikTok видео</b>\n\n"
+        "Пример:\n"
+        "<code>https://www.tiktok.com/@username/video/123456789</code>",
     )
     await call.answer()
 
@@ -1290,6 +1334,28 @@ async def tp_target_subs_get_link(message: Message, state: FSMContext, premium: 
         f"📥 <b>Теперь введите количество подписчиков</b>\n\n"
         f"Минимум: <b>{TP_TARGET_SUBS_MIN}</b>\n"
         f"Максимум: <b>{TP_TARGET_SUBS_MAX}</b>",
+    )
+
+@router.message(PromotionStates.tt_likes_link)
+async def tt_likes_get_link(message: Message, state: FSMContext, premium: PremiumEmoji):
+    link = (message.text or "").strip()
+
+    if not link.startswith("http"):
+        await premium.answer_html(
+            message,
+            "❌ <b>Ссылка некорректна.</b>\n\n"
+            "Отправьте ссылку на TikTok видео.",
+        )
+        return
+
+    await state.update_data(link=link)
+    await state.set_state(PromotionStates.tt_likes_quantity)
+
+    await premium.answer_html(
+        message,
+        f"📥 <b>Теперь введите количество лайков</b>\n\n"
+        f"Минимум: <b>{TT_LIKES_MIN}</b>\n"
+        f"Максимум: <b>{TT_LIKES_MAX}</b>",
     )
 
 @router.message(PromotionStates.tp_target_views_quantity)
@@ -2025,6 +2091,59 @@ async def tt_provider_subs_get_quantity(
         reply_markup=tt_provider_subs_confirm_kb(),
     )
 
+@router.message(PromotionStates.tt_likes_quantity)
+async def tt_likes_get_quantity(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    premium: PremiumEmoji,
+):
+    raw = (message.text or "").strip()
+
+    if not raw.isdigit():
+        await premium.answer_html(message, "❌ Введите количество цифрами.")
+        return
+
+    quantity = int(raw)
+
+    if quantity < TT_LIKES_MIN:
+        await premium.answer_html(
+            message,
+            f"❌ Минимальное количество: <b>{TT_LIKES_MIN}</b>",
+        )
+        return
+
+    if quantity > TT_LIKES_MAX:
+        await premium.answer_html(
+            message,
+            f"❌ Максимальное количество: <b>{TT_LIKES_MAX}</b>",
+        )
+        return
+
+    data = await state.get_data()
+    link = data["link"]
+    price = _calc_tt_likes_price(quantity)
+
+    user = db.get_user(message.from_user.id)
+    balance = float(user["usdt_balance"] or 0.0) if user else 0.0
+
+    await state.update_data(quantity=quantity, price=price)
+
+    text = (
+        "📦 <b>Подтверждение заказа</b>\n\n"
+        "Услуга: <b>TT Лайки живые (Ru)</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"❤️ Количество: <b>{quantity}</b>\n"
+        f"💸 Сумма: <b>{price:.2f} USDT</b>\n"
+        f"💰 Ваш баланс: <b>{balance:.2f} USDT</b>"
+    )
+
+    await premium.answer_html(
+        message,
+        text,
+        reply_markup=tt_likes_confirm_kb(),
+    )
+
 @router.message(PromotionStates.tp_online_subs_quantity)
 async def tp_online_subs_get_quantity(
     message: Message,
@@ -2254,6 +2373,86 @@ async def tp_online_subs_confirm(
         f"🛍 Услуга: <b>TG Онлайн премиум подписчики</b>\n"
         f"🔗 Ссылка: <code>{link}</code>\n"
         f"👥 Количество: <b>{quantity}</b>\n"
+        f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
+        f"📌 Статус: <b>new</b>"
+    )
+
+    try:
+        await call.bot.send_message(
+            cfg.ADMIN_ID,
+            admin_text,
+            parse_mode="HTML",
+            reply_markup=promo_order_admin_kb(order_id),
+        )
+    except Exception:
+        pass
+
+    await state.clear()
+
+    await premium.answer_html(
+        call.message,
+        "✅ <b>Заявка создана</b>\n\n"
+        f"🆔 Номер заказа: <b>#{order_id}</b>\n"
+        "Ваша заявка отправлена администратору.\n"
+        "Средства списаны с USDT баланса.",
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "tt_likes_confirm")
+async def tt_likes_confirm(
+    call: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    cfg,
+    premium: PremiumEmoji,
+):
+    data = await state.get_data()
+    if not data:
+        await call.answer("Данные заказа потеряны", show_alert=True)
+        return
+
+    link = data["link"]
+    quantity = int(data["quantity"])
+    price = float(data["price"])
+
+    user = db.get_user(call.from_user.id)
+    if not user:
+        await premium.answer_html(call.message, "❌ Пользователь не найден в базе.")
+        await call.answer()
+        return
+
+    ok = db.subtract_ref_balance(call.from_user.id, price)
+    if not ok:
+        actual_user = db.get_user(call.from_user.id)
+        balance = float(actual_user["usdt_balance"] or 0.0) if actual_user else 0.0
+        await premium.answer_html(
+            call.message,
+            "❌ <b>Недостаточно USDT на балансе.</b>\n\n"
+            f"Нужно: <b>{price:.2f} USDT</b>\n"
+            f"У вас: <b>{balance:.2f} USDT</b>",
+        )
+        await call.answer()
+        return
+
+    order_id = db.create_promotion_order(
+        user_id=call.from_user.id,
+        username=call.from_user.username or "",
+        service_code="tt_likes",
+        service_name="TT Лайки живые (Ru)",
+        link=link,
+        quantity=quantity,
+        price_usdt=price,
+    )
+
+    admin_text = (
+        "📥 <b>Новая заявка на продвижение</b>\n\n"
+        f"🆔 Заказ: <b>#{order_id}</b>\n"
+        f"👤 Пользователь: <b>{call.from_user.full_name}</b>\n"
+        f"🔹 Username TG: @{call.from_user.username or 'без username'}\n"
+        f"🆔 TG ID: <code>{call.from_user.id}</code>\n\n"
+        f"🛍 Услуга: <b>TT Лайки живые (Ru)</b>\n"
+        f"🔗 Ссылка: <code>{link}</code>\n"
+        f"❤️ Количество: <b>{quantity}</b>\n"
         f"💸 Оплачено: <b>{price:.2f} USDT</b>\n"
         f"📌 Статус: <b>new</b>"
     )
