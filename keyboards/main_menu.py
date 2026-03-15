@@ -569,3 +569,20 @@ def yt_shorts_views_confirm_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def yt_shorts_likes_info_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Заказать", callback_data="yt_shorts_likes_order")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_youtube")],
+        ]
+    )
+
+
+def yt_shorts_likes_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="yt_shorts_likes_confirm")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="tp_cancel_order")],
+        ]
+    )
+
