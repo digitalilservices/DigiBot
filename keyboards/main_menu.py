@@ -133,6 +133,17 @@ def promotion_platforms_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def tiktok_services_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔴 TikTok Прямой эфир", callback_data="tt_live")],
+            [InlineKeyboardButton(text="👥 TikTok подписчики provider", callback_data="tt_provider_subs")],
+            [InlineKeyboardButton(text="❤️ TikTok лайки", callback_data="tt_likes")],
+            [InlineKeyboardButton(text="👁 TikTok просмотры", callback_data="tt_views")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="promo_back_platforms")],
+        ]
+    )
+
 def instagram_services_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

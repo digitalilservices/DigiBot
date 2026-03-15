@@ -43,6 +43,7 @@ from keyboards.main_menu import (
     ig_target_subs_confirm_kb,
     ig_provider_subs_info_kb,
     ig_provider_subs_confirm_kb,
+    tiktok_services_kb,
 )
 
 router = Router()
@@ -266,6 +267,15 @@ async def promo_instagram(call: CallbackQuery, premium: PremiumEmoji):
         call.message,
         "📸 <b>Instagram</b>\n\nВыберите нужную услугу:",
         reply_markup=instagram_services_kb(),
+    )
+    await call.answer()
+
+@router.callback_query(F.data == "promo_tiktok")
+async def promo_tiktok(call: CallbackQuery, premium: PremiumEmoji):
+    await premium.answer_html(
+        call.message,
+        "🎵 <b>TikTok</b>\n\nВыберите нужную услугу:",
+        reply_markup=tiktok_services_kb(),
     )
     await call.answer()
 
