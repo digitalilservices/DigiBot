@@ -117,7 +117,6 @@ async def cabinet(message: Message, db: Database, cfg: Config, premium: PremiumE
         f"🪙 <b>Баланс DGR:</b> <b>{digi_balance:,}</b>\n\n"
         f"🏷 <b>Статус:</b> <b>{status_title}</b>\n\n"
         f"🔄 <b>Конвертация:</b> <b>{convert_txt}</b>\n"
-        f"💸 <b>Вывод:</b> <b>{withdraw_txt}</b>"
         f"{progress_block}"
     )
 
