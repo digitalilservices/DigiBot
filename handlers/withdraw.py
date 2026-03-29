@@ -1,4 +1,3 @@
-# handlers/withdraw.py
 from __future__ import annotations
 
 from services.premium_emoji import PremiumEmoji
@@ -22,10 +21,10 @@ class WithdrawStates(StatesGroup):
     confirm = State()
 
 
-WITHDRAW_MIN = 0.01  # минимальная сумма вывода (теперь одна для всех)
+WITHDRAW_MIN = 0.01  # минимальная сумма вывода
+
 
 def _with_proof_video_kb(base_kb: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
-    # аккуратно добавим новую строку с кнопкой
     rows = []
     if base_kb and getattr(base_kb, "inline_keyboard", None):
         rows = [row[:] for row in base_kb.inline_keyboard]
@@ -68,7 +67,7 @@ def _ensure_withdraw_tables(db: Database):
         source TEXT NOT NULL DEFAULT 'usdt',
         amount_usdt REAL NOT NULL,
         address TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending', -- pending/processed/denied
+        status TEXT NOT NULL DEFAULT 'pending',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         processed_at TEXT,
         processed_by INTEGER,
@@ -88,41 +87,17 @@ def _parse_amount(txt: str):
 
 
 def _is_active(db: Database, tg_id: int) -> bool:
-    """Активный доступ: active И leader."""
+    """Оставлено на случай, если функция используется где-то ещё."""
     try:
         return db.get_status(tg_id) in ("active", "leader")
     except Exception:
         return False
 
+
 async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
     await state.clear()
     tg_id = message_or_call.from_user.id
 
-    # ---- НЕ АКТИВНЫЙ: показываем инфо + кнопку видео ----
-    if not _is_active(db, tg_id):
-        text = (
-            "⛔️ <b>Вывод недоступен</b>\n\n"
-            "✅ <b>Чтобы открыть вывод, получите статус «Активный»</b>\n\n"
-            "<b>• Пополнить 10 USDT</b>\n"
-            "<b>• Выполнить 7 заданий</b>\n"
-            "<b>• Создать 7 заданий</b>\n\n"
-            "👛 <b>Вывод средств происходит автоматически. После создания заявки вы получите чек в</b> @CryptoBot."
-        )
-
-        base_kb = main_menu_kb(
-            is_admin=(message_or_call.from_user.id == cfg.ADMIN_ID),
-            miniapp_url=cfg.WEBAPP_URL
-        )
-        kb = _with_proof_video_kb(base_kb)
-
-        if isinstance(message_or_call, CallbackQuery):
-            await premium.answer_html(message_or_call.message, text, reply_markup=kb)
-            await message_or_call.answer()
-        else:
-            await premium.answer_html(message_or_call, text, reply_markup=kb)
-        return
-
-    # ---- АКТИВНЫЙ: обычный вывод ----
     try:
         usdt_bal = float(db.get_usdt_balance(tg_id) or 0.0)
     except Exception:
@@ -141,6 +116,7 @@ async def _withdraw_entry(message_or_call, state: FSMContext, db: Database, cfg:
         await message_or_call.answer()
     else:
         await premium.answer_html(message_or_call, text, reply_markup=_back_kb("withdraw_cancel"))
+
 
 @router.callback_query(F.data == "withdraw_proof_video")
 async def withdraw_proof_video(call: CallbackQuery):
@@ -179,18 +155,6 @@ async def withdraw_cancel(call: CallbackQuery, state: FSMContext, cfg: Config):
 async def withdraw_amount(message: Message, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
     tg_id = message.from_user.id
 
-    if not _is_active(db, tg_id):
-        await state.clear()
-        await premium.answer_html(
-            message,
-            "⛔ Вывод доступен только со статусом <b>Активный</b>.",
-            reply_markup=main_menu_kb(
-                is_admin=(message.from_user.id == cfg.ADMIN_ID),
-                miniapp_url=cfg.WEBAPP_URL
-            )
-        )
-        return
-
     amount = _parse_amount(message.text)
     if amount is None or amount <= 0:
         await premium.answer_html(message, "❌ Введите корректную сумму. Пример: <b>2</b> или <b>5.5</b>")
@@ -200,7 +164,6 @@ async def withdraw_amount(message: Message, state: FSMContext, db: Database, cfg
         await premium.answer_html(message, f"❌ Минимальная сумма вывода: <b>{WITHDRAW_MIN:.2f} USDT</b>")
         return
 
-    # ✅ проверяем только основной usdt_balance
     try:
         bal = float(db.get_usdt_balance(tg_id) or 0.0)
     except Exception:
@@ -225,25 +188,11 @@ async def withdraw_amount(message: Message, state: FSMContext, db: Database, cfg
         reply_markup=_confirm_kb()
     )
 
+
 @router.callback_query(F.data == "withdraw_confirm")
 async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database, cfg: Config, premium: PremiumEmoji):
     tg_id = int(call.from_user.id)
 
-    # 1) доступ только для Active
-    if not _is_active(db, tg_id):
-        await state.clear()
-        await premium.answer_html(
-            call.message,
-            "⛔ Вывод доступен только со статусом <b>Активный</b>.",
-            reply_markup=main_menu_kb(
-                is_admin=(tg_id == int(cfg.ADMIN_ID)),
-                miniapp_url=cfg.WEBAPP_URL
-            )
-        )
-        await call.answer()
-        return
-
-    # 2) читаем сумму из FSM
     data = await state.get_data()
     try:
         amount = float(data.get("amount", 0.0))
@@ -269,7 +218,6 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
     try:
         cur.execute("BEGIN IMMEDIATE")
 
-        # 3) проверяем баланс
         cur.execute("SELECT usdt_balance FROM users WHERE tg_id=?", (tg_id,))
         row = cur.fetchone()
         if not row:
@@ -283,13 +231,11 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
             await call.answer("Недостаточно USDT баланса", show_alert=True)
             return
 
-        # 4) списываем баланс
         cur.execute(
             "UPDATE users SET usdt_balance = usdt_balance - ? WHERE tg_id=?",
             (amount, tg_id),
         )
 
-        # 5) создаём заявку
         cur.execute("""
             INSERT INTO withdraw_requests (user_id, source, amount_usdt, address, status, created_at)
             VALUES (?, 'usdt', ?, '', 'pending', datetime('now'))
@@ -297,7 +243,6 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
 
         req_id = int(cur.lastrowid)
 
-        # 6) фиксируем транзакцию
         conn.commit()
 
     except Exception:
@@ -310,10 +255,8 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
     finally:
         conn.close()
 
-    # 7) FSM чистим уже после успешного commit
     await state.clear()
 
-    # 8) уведомление админу (вне транзакции, чтобы не мешать пользователю)
     try:
         kb_admin = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="🧾 Открыть заявки на вывод", callback_data="admin_withdrawals")
@@ -334,7 +277,6 @@ async def withdraw_confirm(call: CallbackQuery, state: FSMContext, db: Database,
     except Exception:
         pass
 
-    # 9) ответ пользователю
     await premium.answer_html(
         call.message,
         "✅ <b>Заявка на вывод создана</b>\n\n"

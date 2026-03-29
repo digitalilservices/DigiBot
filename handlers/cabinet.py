@@ -15,7 +15,6 @@ def cabinet_actions_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🟢 Активация статуса", callback_data="activation_menu")],
         [InlineKeyboardButton(text="🔄 Конвертация", callback_data="convert_menu")],
-        [InlineKeyboardButton(text="🧰 Сервис DGR", callback_data="go_service")],
         [InlineKeyboardButton(text="💸 Вывод", callback_data="withdraw_menu")],
     ])
 
